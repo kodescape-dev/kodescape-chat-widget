@@ -1,0 +1,181 @@
+# UI Registry
+
+Visual consistency reference for `src/ui/`. This project has no Tailwind
+and no component framework — plain CSS in `src/ui/styles.css`, scoped
+inside the widget's Shadow DOM. "Class" below means the literal CSS
+class name; values are the actual declarations, not utility tokens.
+
+Read this before adding or restyling any widget UI. Match the existing
+pattern for a given element type rather than inventing a new one.
+
+## Admin live-preview contract
+
+The Admin preview is not a visual reimplementation. It embeds `preview.html`,
+which mounts the exact production components and this exact stylesheet inside
+the widget Shadow DOM. Home, Chat, Pre-chat, Minimized, Desktop, and Mobile are
+renderer states configured over `postMessage`; any visual change made here is
+therefore reflected in Admin automatically. Keep the root `index.html`
+developer harness out of the preview document.
+
+## Design tokens (`.kw-root` in `src/ui/styles.css`)
+
+The only externally-themeable value is `--kw-primary-color`, set on the
+host element from `WidgetSettings.primaryColor` (`mount.ts`'s
+`applyBranding()`). Every other token is fixed — orgs never override
+neutrals, only the one brand accent.
+
+| Token                | Value               | Used for                                          |
+| --------------------- | ------------------- | -------------------------------------------------- |
+| `--kw-primary-color`  | (org-set, fallback `#2563eb`) | launcher, avatar, primary CTA, focus rings, send button, close-to-active accents, inbound-bubble tint |
+| `--kw-ink-900`        | `#101828`            | primary text (headings, body, bubble text)         |
+| `--kw-ink-700`        | `#344054`            | form labels                                        |
+| `--kw-ink-500`        | `#667085`            | secondary text — status text, placeholders, timestamps, privacy line, footnotes (validated ≥4.5:1 on white) |
+| `--kw-ink-400`        | `#98a2b3`            | icon stroke / decorative only — **never** text (fails contrast, ~2.6:1) |
+| `--kw-border`         | `#e5e7eb`            | all hairline borders, skeleton bubble fill          |
+| `--kw-surface`        | `#ffffff`            | panel background, input focus background, outbound bubble |
+| `--kw-surface-sunk`   | `#f7f8fa`            | input resting background, message list background  |
+
+**Pattern notes:** `--kw-ink-400` is for icons and borders only — it was
+originally (wrongly) used for placeholder/timestamp text and failed the
+4.5:1 contrast floor; fixed once, don't reintroduce it as a text color.
+Status-dot green (`#22c55e`) / amber (`#f59e0b`) and the danger red
+(`#ef4444`) are connection/error semantics, not brand — they stay fixed
+regardless of `--kw-primary-color`.
+
+## Panel shell & header
+
+File: `src/ui/window.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property        | Value                                                                 |
+| ---------------- | ---------------------------------------------------------------------- |
+| Background       | `var(--kw-surface)`                                                    |
+| Border            | `1px solid rgba(16, 24, 40, 0.04)`                                     |
+| Border radius     | `20px` (panel), `9px` (small icon buttons like close)                  |
+| Shadow            | `0 2px 4px rgba(16,24,40,.04), 0 20px 40px -12px rgba(16,24,40,.22)`   |
+| Header padding    | `16px 18px`, `border-bottom: 1px solid var(--kw-border)`               |
+| Avatar            | `36px` circle, `var(--kw-primary-color)` bg, white initials, `650` weight |
+| Title text        | `14.5px / 650 / var(--kw-ink-900)`                                     |
+| Status text       | `12.5px / var(--kw-ink-500)`, 7px dot with a 3px soft glow ring        |
+| Focus ring        | `2px solid var(--kw-primary-color)`, `2px` offset — every interactive element |
+
+**Pattern notes:** the header is identical across all three views (home /
+lead-capture / chat) — never make a view-specific header variant. Panel
+radius (20px) is the "large surface" radius; smaller controls (buttons,
+inputs, icon buttons) use 9–12px — see below. Below 480px the panel goes
+full-screen (`inset: 0`, `border-radius: 0`) — not itself in this
+registry since it's a responsive override, not a base pattern.
+
+## Primary button (`.kw-btn-primary`)
+
+File: `src/ui/home.ts`, `src/ui/lead-capture.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property      | Value                                                                                          |
+| -------------- | -------------------------------------------------------------------------------------------------- |
+| Background     | `var(--kw-primary-color)`                                                                          |
+| Text            | `#fff`, `14.5px / 600`                                                                             |
+| Border radius   | `12px`                                                                                              |
+| Padding         | `13px 16px`                                                                                         |
+| Shadow          | `0 1px 2px rgba(16,24,40,.06), 0 4px 12px -2px color-mix(in srgb, var(--kw-primary-color) 40%, transparent)` |
+| Hover           | `filter: brightness(0.94)`                                                                         |
+| Layout           | `justify-content: space-between` by default (label + trailing icon); `.kw-btn-primary--center` modifier centers when there's no icon (lead-capture's "Start chat") |
+
+**Pattern notes:** this is the *only* filled/high-emphasis button in the
+widget. Secondary actions (`.kw-resume-link`, `.kw-lead-back`) are always
+outline or ghost — never a second solid-fill button competing with this
+one on the same screen.
+
+## Secondary controls — outline card & ghost button
+
+File: `src/ui/home.ts` (`.kw-resume-link`), `src/ui/lead-capture.ts`
+(`.kw-lead-back`), `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property      | Outline card (`.kw-resume-link`)         | Ghost button (`.kw-lead-back`, `.kw-close`) |
+| -------------- | ------------------------------------------ | ---------------------------------------------- |
+| Background     | `var(--kw-surface)`, hover → `var(--kw-surface-sunk)` | transparent, hover → `var(--kw-surface-sunk)`  |
+| Border          | `1px solid var(--kw-border)`               | none                                           |
+| Border radius   | `12px`                                     | `8–9px`                                        |
+| Text            | `13.5px / 600 / var(--kw-ink-900)` (title) + `12.5px / var(--kw-ink-500)` (subtitle) | `13px / 600 / var(--kw-ink-500)`, hover → `var(--kw-ink-700)` |
+
+**Pattern notes:** ghost buttons (icon-only or icon+label, no border, no
+fill) are for low-emphasis navigation — back, close. Outline cards (bordered,
+white fill) are for a secondary *choice* that's still substantial —
+"Continue previous conversation" is a real alternative path, not a minor
+action, hence the card treatment instead of a plain link.
+
+## Form field (`.kw-field-input`)
+
+File: `src/ui/lead-capture.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property        | Value                                                                 |
+| ---------------- | ------------------------------------------------------------------------ |
+| Background       | `var(--kw-surface-sunk)`, focus → `var(--kw-surface)`                   |
+| Border            | `1px solid var(--kw-border)`, focus → `var(--kw-primary-color)`         |
+| Border radius     | `10px`                                                                  |
+| Padding           | `11px 13px`                                                             |
+| Text               | `13.5px / var(--kw-ink-900)`, placeholder → `var(--kw-ink-500)` (not `--kw-ink-400` — contrast) |
+| Focus ring         | `0 0 0 3px color-mix(in srgb, var(--kw-primary-color) 14%, transparent)` |
+| Label              | `12.5px / 600 / var(--kw-ink-700)`, optional-suffix → `var(--kw-ink-500)` |
+
+**Pattern notes:** sunk-background-that-lifts-on-focus is the field
+pattern everywhere (also used by the composer input) — don't switch to a
+plain white-bordered-always field style for a new form.
+
+## Message bubble (`.kw-bubble`)
+
+File: `src/ui/message-list.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property      | Outbound (admin, left)          | Inbound (visitor, right)                                                      |
+| -------------- | ---------------------------------- | ---------------------------------------------------------------------------------- |
+| Background     | `var(--kw-surface)`                | `color-mix(in srgb, var(--kw-primary-color) 14%, white)` (fallback: solid `var(--kw-primary-color)` under `@supports` guard for browsers without `color-mix`) |
+| Text            | `var(--kw-ink-900)`                | `var(--kw-ink-900)` (fallback path: `#fff` on solid brand)                        |
+| Border          | `1px solid var(--kw-border)`       | none                                                                                |
+| Border radius   | `14px`, tail corner `4px`          | `14px`, tail corner `4px`                                                          |
+| Max width       | `82%` of `.kw-list`                | `82%` of `.kw-list`                                                                |
+
+**Pattern notes:** `direction: 'inbound'` in this codebase means *the
+visitor's own message* (right-aligned) and `'outbound'` means the admin
+reply (left-aligned) — matches the backend's naming (inbound to the org,
+outbound from the org), not the visual side. Don't rename or "fix" this
+without checking `core/types.ts`'s `MessageDirection` first. Skeleton
+loading rows (`.kw-skeleton-bubble`) reuse these same row classes for
+alignment but use fixed px widths, not `%` — percentage width on a
+shrink-to-fit flex row resolves to 0 (see architecture.md).
+
+## Composer
+
+File: `src/ui/composer.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property        | Value                                                                 |
+| ---------------- | ------------------------------------------------------------------------ |
+| Input wrap        | `var(--kw-surface-sunk)`, `1px solid var(--kw-border)`, radius `22px` (pill), focus-within → border + bg become `var(--kw-primary-color)` / `var(--kw-surface)` |
+| Input text         | `13.5px / var(--kw-ink-900)`, placeholder `var(--kw-ink-500)`           |
+| Send button         | `42px` circle, `var(--kw-primary-color)` bg, white icon, shadow `0 2px 8px -1px color-mix(in srgb, var(--kw-primary-color) 45%, transparent)` |
+| Disabled            | `opacity: 0.6; cursor: not-allowed`                                     |
+
+**Pattern notes:** the pill-input-plus-circular-icon-button pattern is
+unique to the composer — form fields (above) are rectangular with a
+separate submit button below, never inline. Don't merge the two patterns.
+
+## Launcher
+
+File: `src/ui/launcher.ts`, `src/ui/styles.css`
+Last updated: 2026-08-21
+
+| Property   | Value                                                                                     |
+| ----------- | --------------------------------------------------------------------------------------------- |
+| Size         | `60px` circle                                                                                  |
+| Background   | `var(--kw-primary-color)`                                                                      |
+| Shadow       | `0 10px 24px -4px color-mix(in srgb, var(--kw-primary-color) 45%, transparent), 0 4px 10px rgba(16,24,40,.12)` |
+| Icon          | inline SVG, `1.8px` stroke, `26px`                                                              |
+| Badge         | `14px` circle, `#ef4444`, `2.5px solid #fff` ring — boolean presence only, no unread count today |
+
+**Pattern notes:** the badge is a plain unread *dot*, not a numbered
+pill — there's no unread-count data anywhere in `ChatStore`/the API
+today. Don't add a number without first plumbing real count data;
+a fabricated number is worse than the dot.

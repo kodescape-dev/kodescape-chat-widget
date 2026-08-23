@@ -1,0 +1,322 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-08-22T06:19:28Z",
+  "title": "Design System: Kodescape Chat Widget",
+  "extensions": {
+    "colorMeta": {
+      "brand-blue": {
+        "role": "primary",
+        "displayName": "Kodescape Blue",
+        "canonical": "#2563eb",
+        "tonalRamp": [
+          "#061a46",
+          "#0c3183",
+          "#1146bb",
+          "#1f5fea",
+          "#5787f0",
+          "#8aabf4",
+          "#bed0f9",
+          "#e8eefd"
+        ]
+      },
+      "ink-900": {
+        "role": "neutral",
+        "displayName": "Ink 900",
+        "canonical": "#101828",
+        "tonalRamp": [
+          "#162137",
+          "#293d66",
+          "#3a5792",
+          "#5073b9",
+          "#7c96cb",
+          "#a4b6db",
+          "#ccd6eb",
+          "#edf0f8"
+        ]
+      },
+      "ink-700": {
+        "role": "neutral",
+        "displayName": "Ink 700",
+        "canonical": "#344054",
+        "tonalRamp": [
+          "#1d242f",
+          "#374358",
+          "#4e607e",
+          "#687da1",
+          "#8e9eb9",
+          "#b0bcce",
+          "#d3d9e4",
+          "#eff2f5"
+        ]
+      },
+      "ink-500": {
+        "role": "neutral",
+        "displayName": "Ink 500",
+        "canonical": "#667085",
+        "tonalRamp": [
+          "#21242b",
+          "#3e4451",
+          "#596173",
+          "#747f95",
+          "#979faf",
+          "#b7bcc8",
+          "#d7dae0",
+          "#f1f2f4"
+        ]
+      },
+      "ink-400": {
+        "role": "neutral",
+        "displayName": "Ink 400",
+        "canonical": "#98a2b3",
+        "tonalRamp": [
+          "#20252c",
+          "#3d4552",
+          "#576275",
+          "#728097",
+          "#95a0b1",
+          "#b6bdc9",
+          "#d6dae1",
+          "#f0f2f4"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "canonical": "#e5e7eb",
+        "tonalRamp": [
+          "#21252b",
+          "#3e4451",
+          "#596273",
+          "#757f95",
+          "#979faf",
+          "#b7bcc8",
+          "#d7dae0",
+          "#f1f2f4"
+        ]
+      },
+      "surface-sunk": {
+        "role": "neutral",
+        "displayName": "Surface Sunk",
+        "canonical": "#f7f8fa",
+        "tonalRamp": [
+          "#1d232f",
+          "#374258",
+          "#4e5e7e",
+          "#687ba1",
+          "#8e9cb8",
+          "#b1bace",
+          "#d3d9e4",
+          "#eff1f5"
+        ]
+      },
+      "status-online": {
+        "role": "semantic",
+        "displayName": "Online Green",
+        "canonical": "#22c55e",
+        "tonalRamp": [
+          "#0b411f",
+          "#157a3a",
+          "#1eae53",
+          "#2edb6e",
+          "#62e492",
+          "#92ecb3",
+          "#c2f4d5",
+          "#e9fbf0"
+        ]
+      },
+      "status-offline": {
+        "role": "semantic",
+        "displayName": "Offline Amber",
+        "canonical": "#f59e0b",
+        "tonalRamp": [
+          "#492f03",
+          "#895806",
+          "#c47e08",
+          "#f5a214",
+          "#f8b94f",
+          "#face85",
+          "#fce4ba",
+          "#fef5e7"
+        ]
+      },
+      "status-danger": {
+        "role": "semantic",
+        "displayName": "Danger Red",
+        "canonical": "#ef4444",
+        "tonalRamp": [
+          "#460606",
+          "#840b0b",
+          "#bc1010",
+          "#ec1d1d",
+          "#f15656",
+          "#f58a8a",
+          "#f9bdbd",
+          "#fde8e8"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "The home screen's 'Hi there' greeting only — the single large text moment in the system."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Header org/agent name, paired with the avatar and status row."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Message bubble text and form input text — real content the visitor reads or writes."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Form field labels, button text, status text."
+      },
+      "caption": {
+        "displayName": "Caption",
+        "purpose": "Timestamps, privacy line, optional-field suffix — the quietest text."
+      }
+    },
+    "shadows": [
+      {
+        "name": "panel-float",
+        "value": "0 2px 4px rgba(16,24,40,.04), 0 20px 40px -12px rgba(16,24,40,.22)",
+        "purpose": "The whole panel floating above the host page."
+      },
+      {
+        "name": "launcher-float",
+        "value": "0 10px 24px -4px color-mix(in srgb, var(--kw-primary-color) 45%, transparent), 0 4px 10px rgba(16,24,40,.12)",
+        "purpose": "Brand-tinted glow under the launcher button."
+      },
+      {
+        "name": "cta-glow",
+        "value": "0 1px 2px rgba(16,24,40,.06), 0 4px 12px -2px color-mix(in srgb, var(--kw-primary-color, #2563eb) 40%, transparent)",
+        "purpose": "Soft brand-tinted glow under the one primary action per screen (CTA, send button)."
+      }
+    ],
+    "motion": [
+      {
+        "name": "skeleton-pulse",
+        "value": "opacity 1.4s ease-in-out infinite, 0.55 to 1",
+        "purpose": "Loading-skeleton bubble pulse while chat history fetches; staggered ~0.12s per row."
+      },
+      {
+        "name": "typing-bounce",
+        "value": "translateY 1.2s ease-in-out infinite, 0 to -4px",
+        "purpose": "The (currently unwired) typing-indicator dots' bounce, staggered 0.15s per dot."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "480px",
+        "purpose": "Below this width the panel becomes a full-screen overlay instead of a floating card."
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one filled, high-emphasis action per screen — 'Start a conversation', 'Start chat'.",
+      "html": "<button class=\"ds-btn-primary\">Start a conversation</button>",
+      "css": ".ds-btn-primary { background: #2563eb; color: #fff; font: 600 14.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; border: none; border-radius: 12px; padding: 13px 16px; cursor: pointer; box-shadow: 0 1px 2px rgba(16,24,40,.06), 0 4px 12px -2px rgba(37,99,235,.4); transition: filter 0.15s; } .ds-btn-primary:hover { filter: brightness(0.94); } .ds-btn-primary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }"
+    },
+    {
+      "name": "Outline Secondary Card",
+      "kind": "button",
+      "refersTo": "resume-link",
+      "description": "A substantial secondary choice, e.g. 'Continue previous conversation' — bordered, not filled.",
+      "html": "<button class=\"ds-outline-card\"><span class=\"ds-outline-card-title\">Continue previous conversation</span></button>",
+      "css": ".ds-outline-card { display: flex; align-items: center; width: 100%; text-align: left; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; padding: 13px 14px; cursor: pointer; transition: background 0.15s; } .ds-outline-card:hover { background: #f7f8fa; } .ds-outline-card-title { font: 600 13.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #101828; }"
+    },
+    {
+      "name": "Form Field",
+      "kind": "input",
+      "refersTo": "field-input",
+      "description": "Sunk-background input that lifts to white with a brand focus ring on focus.",
+      "html": "<div class=\"ds-field\"><label class=\"ds-field-label\">Email address</label><input class=\"ds-field-input\" type=\"email\" placeholder=\"jordan@company.com\" /></div>",
+      "css": ".ds-field-label { display: block; font: 600 12.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #344054; margin-bottom: 6px; } .ds-field-input { width: 100%; padding: 11px 13px; border-radius: 10px; border: 1px solid #e5e7eb; background: #f7f8fa; font: 400 13.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #101828; } .ds-field-input::placeholder { color: #667085; } .ds-field-input:focus { outline: none; border-color: #2563eb; background: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,.14); }"
+    },
+    {
+      "name": "Message Bubble — Visitor (inbound)",
+      "kind": "custom",
+      "refersTo": "bubble-inbound",
+      "description": "The visitor's own message, right-aligned, light brand tint (not solid fill).",
+      "html": "<div class=\"ds-bubble-row ds-bubble-row--inbound\"><div class=\"ds-bubble ds-bubble--inbound\">We're on the Team plan, billed annually.</div></div>",
+      "css": ".ds-bubble-row { display: flex; } .ds-bubble-row--inbound { justify-content: flex-end; } .ds-bubble { max-width: 82%; padding: 10px 13px; border-radius: 14px; font: 400 13.5px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-bubble--inbound { background: color-mix(in srgb, #2563eb 14%, white); color: #101828; border-bottom-right-radius: 4px; }"
+    },
+    {
+      "name": "Message Bubble — Admin (outbound)",
+      "kind": "custom",
+      "refersTo": "bubble-outbound",
+      "description": "The admin/agent reply, left-aligned, white with a hairline border.",
+      "html": "<div class=\"ds-bubble-row ds-bubble-row--outbound\"><div class=\"ds-bubble ds-bubble--outbound\">Can you tell me which plan your workspace is on?</div></div>",
+      "css": ".ds-bubble-row--outbound { justify-content: flex-start; } .ds-bubble--outbound { max-width: 82%; padding: 10px 13px; border-radius: 14px; font: 400 13.5px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #fff; color: #101828; border: 1px solid #e5e7eb; border-bottom-left-radius: 4px; }"
+    },
+    {
+      "name": "Launcher",
+      "kind": "custom",
+      "refersTo": "launcher",
+      "description": "The collapsed circular entry point, floating bottom-corner of the host page.",
+      "html": "<button class=\"ds-launcher\" aria-label=\"Open chat\"><svg viewBox=\"0 0 24 24\" fill=\"none\" width=\"26\" height=\"26\"><path d=\"M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z\" stroke=\"#fff\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>",
+      "css": ".ds-launcher { width: 60px; height: 60px; border-radius: 50%; border: none; background: #2563eb; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 10px 24px -4px rgba(37,99,235,.45), 0 4px 10px rgba(16,24,40,.12); } .ds-launcher:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }"
+    },
+    {
+      "name": "Composer",
+      "kind": "input",
+      "refersTo": "composer",
+      "description": "Pill text input plus a circular brand-fill send button — unique to the composer, not reused elsewhere.",
+      "html": "<form class=\"ds-composer\"><div class=\"ds-composer-input-wrap\"><input class=\"ds-composer-input\" placeholder=\"Type your message…\" /></div><button class=\"ds-composer-send\" type=\"submit\" aria-label=\"Send message\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\"><path d=\"M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></form>",
+      "css": ".ds-composer { display: flex; align-items: center; gap: 8px; padding: 14px 16px; background: #fff; border-top: 1px solid #e5e7eb; } .ds-composer-input-wrap { flex: 1; display: flex; align-items: center; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 22px; padding: 0 14px; } .ds-composer-input-wrap:focus-within { border-color: #2563eb; background: #fff; } .ds-composer-input { flex: 1; border: none; background: transparent; padding: 10px 0; font: 400 13.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #101828; } .ds-composer-input:focus { outline: none; } .ds-composer-input::placeholder { color: #667085; } .ds-composer-send { width: 42px; height: 42px; border-radius: 50%; border: none; background: #2563eb; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px -1px rgba(37,99,235,.45); }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Quiet Concierge",
+    "overview": "This is a support panel that behaves the way a good concierge does: present, competent, and almost entirely out of the way until you need it. The system is deliberately restrained — one accent color, a fixed neutral scale, no gradients, no decorative iconography, no invented metrics or urgency devices. It reads as a real SaaS product (the register named in the brief was Intercom/Crisp/Tidio-tier), not a generic AI-generated dashboard: soft layered shadows instead of hard edges, a single system font stack at a small number of disciplined sizes, and generous but tight spacing rather than airy marketing whitespace.\n\nThe brand accent (--kw-primary-color, org-themeable) is rationed on purpose: it appears at the launcher, the one primary call-to-action per screen, the online-status accent, focus rings, and a light tint on the visitor's own messages. Every other surface — panel, header, form fields, admin messages — stays neutral slate and white. This scarcity is the point: when blue appears, it means \"act here.\"",
+    "keyCharacteristics": [
+      "One accent color, rationed to launcher / primary CTA / focus rings / online accent / visitor-message tint",
+      "Fixed neutral scale (slate grays + white), never themed per org",
+      "Soft, ambient shadows — never a hard/flat neobrutalist edge, never a heavy card-stack",
+      "A single system font stack, disciplined into five size/weight roles, no display type",
+      "Every interactive control has a visible focus ring in the accent color"
+    ],
+    "rules": [
+      {
+        "name": "The One Signal Rule",
+        "body": "The brand accent marks exactly one thing per screen: the single primary action. A screen never has two blue CTAs competing for attention.",
+        "section": "colors"
+      },
+      {
+        "name": "The Ink-400-Is-Not-Text Rule",
+        "body": "#98a2b3 exists for icon strokes and borders only. If a designer reaches for it on a text node, that's the contrast bug reintroducing itself.",
+        "section": "colors"
+      },
+      {
+        "name": "The No-Display-Face Rule",
+        "body": "This system has no display/hero typography role. The widget is 368px wide and task-focused; a large expressive headline would fight the concierge, not billboard premise.",
+        "section": "typography"
+      },
+      {
+        "name": "The Flat-Interior Rule",
+        "body": "Nothing inside the panel casts a shadow on anything else inside the panel. Elevation exists only at the panel/launcher's boundary with the host page, and on the one primary action per screen.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do ration the brand accent to one primary action, the launcher, focus rings, the online-status accent, and the visitor's-own-message tint — never more.",
+      "Do use Ink 500 (#667085) for any secondary or small text; it's the darkest neutral that still clears 4.5:1 contrast on white.",
+      "Do keep the panel interior flat — borders and background-tone shifts carry hierarchy, not shadows, inside the panel.",
+      "Do keep the header identical across every view; a view-specific header is a system violation, not a variant.",
+      "Do use the system font stack (-apple-system, ...) — no webfont, matching this repo's zero-runtime-dependency rule for the shipped widget."
+    ],
+    "donts": [
+      "Don't use Ink 400 (#98a2b3) for text of any kind — icon strokes and borders only.",
+      "Don't add a second filled/brand-colored button on the same screen as the primary CTA.",
+      "Don't invent an unread-count number on the launcher badge — it's a boolean presence dot because no real count data exists in the store or API today. Wire real data first.",
+      "Don't add a functional-looking control (attachment icon, typing indicator, message reactions) that isn't actually wired to a real capability.",
+      "Don't give the visitor's own message bubbles a solid, fully-saturated brand fill by default — the light tint is the chosen treatment; solid fill is the legacy/fallback path only."
+    ]
+  }
+}

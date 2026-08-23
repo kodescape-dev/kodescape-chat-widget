@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Kodescape Chat Widget — Dev Harness</title>
+    <style>
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+        margin: 0;
+        padding: 40px;
+        background: #f4f4f5;
+        color: #18181b;
+      }
+      body.preview {
+        padding: 0;
+        background: transparent;
+        overflow: hidden;
+      }
+      body.preview .panel {
+        display: none;
+      }
+      .panel {
+        max-width: 640px;
+        margin: 0 auto 24px;
+        padding: 20px 24px;
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      code {
+        background: #f4f4f5;
+        padding: 2px 6px;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="panel">
+      <h1>Kodescape Chat Widget — Dev Harness</h1>
+      <p>
+        Loads two independent widget instances against a local cms-api
+        (<code>http://localhost:5001</code>) — one per <code>siteId</code> — to
+        simulate Org A and Org B running side by side, per the Phase 1
+        Definition-of-Done checklist.
+      </p>
+      <p>
+        Set <code>window.__KW_SITE_ID_A__</code> /
+        <code>window.__KW_SITE_ID_B__</code> in devtools before reload, or edit
+        the values directly in <code>index.html</code> — these must match real
+        <code>ChatWidgetSettings.siteId</code> values seeded in the local
+        database with <code>allowedDomains</code> including
+        <code>localhost</code>.
+      </p>
+    </div>
+
+    <script type="module" src="/src/dev-entry.ts"></script>
+  </body>
+</html>
