@@ -737,3 +737,118 @@ Last updated: 2026-08-24
 ## Open questions
 
 - None new this session.
+
+---
+
+# Memory — /imprint + /impeccable document pass for the emoji picker
+
+Last updated: 2026-08-24 (same day, follow-up to the entry above)
+
+## What was built
+
+- Ran `/imprint` on `src/ui/emoji-picker.ts`: added a new "Emoji picker"
+  entry to `context/ui-registry.md`, documenting the floating panel's
+  exact token usage (`--kw-surface`, `--kw-border`, `--kw-ink-500/900`,
+  `--kw-primary-color`) and confirming it introduces zero new colors —
+  built entirely from tokens the rest of the widget already defines.
+- Ran `/impeccable document` in **narrow-addition mode** (explicit user
+  choice over full regen — see `kodescape-admin`'s equivalent entry for
+  the same choice applied there): `DESIGN.md` gained an "Emoji Picker
+  (signature component)" entry under Components, a new "Emoji picker
+  float" shadow under Shadow Vocabulary, and an update to The
+  Flat-Interior Rule noting the picker as a scoped exception (it's a
+  popover overlaying panel content, the same class of exception the rule
+  already made for the outer panel itself). `.impeccable/design.json`
+  got a matching component snippet and rule-body update, plus
+  `generatedAt` bumped.
+- **Corrected two stale claims found in `DESIGN.md` while doing this**:
+  its Overview said "no attachment icon (no attachment feature exists to
+  back one)" and its Don't list named "attachment icon, typing indicator"
+  as examples of deliberately-unwired dead affordances. Both are wrong as
+  of this session — attachments (file picker, previews, upload) and the
+  typing indicator were both fully wired in the Phase 3 session (see this
+  file's own "Website Chat Phase 3" entry above) and attachments predate
+  even that. Only "message reactions" remains a true not-yet-built
+  example. Fixed both the root `DESIGN.md` and the sidecar's `donts`
+  array to match reality.
+
+## Decisions made
+
+- Fixed the stale attachment/typing-indicator claims as part of this same
+  pass rather than a separate task — same file, same evidentiary basis
+  (reading `composer.ts` for the emoji picker surfaced the contradiction
+  directly), and leaving a false "doesn't exist" statement one paragraph
+  above a new true "here's how the emoji picker works" statement would
+  have been actively confusing to read.
+
+## Problems solved
+
+- The two stale DESIGN.md claims above (not a code bug — a documentation
+  accuracy bug, found and fixed in the same file already being edited).
+
+## Current state
+
+- `context/ui-registry.md`, `DESIGN.md`, and `.impeccable/design.json`
+  now accurately describe the emoji picker and correctly describe
+  attachments/typing-indicator as real, wired features rather than
+  rejected ones. Nothing else in the repo changed; the emoji-picker.ts
+  untracked/build-broken issue from the prior entry is still unresolved.
+
+## Next session starts with
+
+- Nothing outstanding from this pass. Same standing item: fix the
+  untracked `emoji-picker.ts` / broken-HEAD gap noted in the prior entry.
+
+## Open questions
+
+- None new this session.
+
+---
+
+# Memory — Unexpected local auto-commits found; emoji-picker.ts build gap now resolved as a side effect
+
+Last updated: 2026-08-24 (same day, final note)
+
+## What was built
+
+- Nothing — a finding. At the end of this session, `git log` showed two
+  new local commits, both "Add an emoji picker widget for the chat
+  interface", authored `Fazley Rabbi <sfazleyrabbi@gmail.com>` (this
+  repo's real local git identity) but **not** created by any `git commit`
+  this session ran. `fbfea36` contains `src/ui/emoji-picker.ts` (161
+  lines, byte-identical to the untracked file the prior entry flagged) +
+  this session's first `memory.md` append; `da31aad` contains this
+  session's second `ui-registry.md`/`DESIGN.md` follow-up append. No
+  upstream remote on `main`, so nothing pushed — local
+  only. Net effect: the prior entry's "HEAD does not build" finding is
+  now **moot** — `emoji-picker.ts` is committed, `git show
+HEAD:src/ui/emoji-picker.ts` matches the working tree exactly. Updated
+  `kodescape-cms-api/docs/WEBSITE-CHAT.md`'s "Known issue" callout to
+  "Resolved" to match.
+- Same pattern was found in `kodescape-admin` (2 commits, different
+  author identity there — `Kodescape <info.kodescape@gmail.com>`, that
+  repo's own local git config). `kodescape-cms-api` was unaffected.
+
+## Decisions made
+
+- Did not reset/amend/revert anything — flagged to the user instead of
+  acting unilaterally on git history, even though in this repo's case the
+  side effect happened to be beneficial (fixed the build gap).
+
+## Current state
+
+- `git log -3` on `main` shows these two commits on top of `437b1f1`.
+  Only `.impeccable/design.json` (gitignored) and this file's own latest
+  append are left as uncommitted working-tree changes.
+
+## Next session starts with
+
+- If this recurs: check whether some local automation (hook, watcher,
+  another session/process) is auto-committing during Claude Code
+  sessions in this environment — don't rely on it to fix gaps like this
+  one did; it happened to help here, it could just as easily commit
+  something mid-edit and broken.
+
+## Open questions
+
+- What creates these commits — not identified this session.
