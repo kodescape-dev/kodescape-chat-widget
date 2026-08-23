@@ -672,3 +672,68 @@ every prior Website Chat session in this repo.
 ## Open questions
 
 None new this session.
+
+---
+
+# Memory — Documentation pass: emoji picker found untracked, HEAD currently build-broken
+
+Last updated: 2026-08-24
+
+## What was built
+
+- No product code changes this session — a documentation/memory-hygiene
+  pass across all three Website Chat repos, requested by the user. This
+  file was already 100% Website Chat entries (this repo's whole purpose),
+  so no pruning was needed here — only this append.
+- Read `src/ui/emoji-picker.ts` (161 lines) in full: `createEmojiPicker()`
+  builds a search+category emoji grid off `emojibase-data`'s English
+  `compact` dataset (skin-tone/component group filtered out), grouped by
+  `emojibase-data`'s own `messages.json` category list, with a live
+  label+tag text search. Wired into `src/ui/composer.ts` behind a
+  smile-icon toggle next to the existing attach button; selection inserts
+  at the textarea cursor via the existing `insertAtCursor` helper.
+  Documented in `kodescape-cms-api/docs/WEBSITE-CHAT.md`'s new "Phase 4"
+  section (this repo's widget subsection) this session.
+
+## Decisions made
+
+- Did not `git add` the file or fix the build gap below — out of scope for
+  a docs-only pass, and committing/staging code is a decision for the
+  user to make explicitly, not something to do silently while doing
+  documentation work.
+
+## Problems solved
+
+- None fixed, but a real one **found**: `git status` shows only
+  `src/ui/emoji-picker.ts` as untracked (nothing else uncommitted in this
+  repo). `git show HEAD:src/ui/composer.ts` confirms the **already-committed**
+  `composer.ts` contains `import { createEmojiPicker } from
+'./emoji-picker'` and calls it unconditionally in `createComposer()`.
+  Since `emoji-picker.ts` itself was never committed
+  (`git ls-files | grep emoji` → no match), **the current `chat-widget`
+  branch HEAD does not build** — any fresh `git clone` + `pnpm build` (or
+  CI) fails on the missing module. `package.json`'s `emojibase-data:
+^17.0.0` dependency IS already committed, so only the one source file is
+  missing. Needs `git add src/ui/emoji-picker.ts` and a commit before this
+  branch is safe to build from a clean checkout.
+
+## Current state
+
+- Same working tree as before this session: `src/ui/emoji-picker.ts`
+  still untracked, HEAD still build-broken until it's added and committed.
+  This file (`memory.md`) unchanged in structure, only this entry appended.
+
+## Next session starts with
+
+- If asked to fix the build gap: `git add src/ui/emoji-picker.ts`, verify
+  `pnpm exec tsc --noEmit` / `pnpm build` clean from a truly fresh state
+  (e.g. after `git stash` to confirm HEAD alone was broken), then commit.
+  Ask the user first — this is a repo-state change, not a docs edit.
+- Same standing cross-repo item: nothing in the whole Website Chat feature
+  has been committed as a *deliberate, reviewed* commit in any of the
+  three repos yet (this repo does have one prior commit, `437b1f1`, but it
+  predates the emoji-picker addition and is the one now missing a file).
+
+## Open questions
+
+- None new this session.
