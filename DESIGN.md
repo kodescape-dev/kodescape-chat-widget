@@ -108,7 +108,7 @@ This is a support panel that behaves the way a good concierge does: present, com
 
 The brand accent (`--kw-primary-color`) is rationed on purpose: it appears at the launcher, the one primary call-to-action per screen, focus rings, and a light tint on the visitor's own messages. Widget surfaces and foregrounds come from `--kw-background-color` and `--kw-text-color`, with related muted, border, and sunk colors derived from those two inputs. This keeps Admin preview and the embedded renderer on one three-color system.
 
-Confirmed visual rejections from the brief: no gradients as decoration, no bento-grid card walls, no fabricated metrics or reply-time claims, no numbered unread badge (no real count data exists to back one), no attachment icon (no attachment feature exists to back one).
+Confirmed visual rejections from the brief: no gradients as decoration, no bento-grid card walls, no fabricated metrics or reply-time claims, no numbered unread badge (no real count data exists to back one). Attachments and an emoji picker were added after this brief was written (2026-08-24) — both are real, fully wired capabilities, not decoration; see Components → Emoji Picker below and the Composer's attach button.
 
 **Key Characteristics:**
 
@@ -180,10 +180,11 @@ Ambient, not structural. Shadows in this system signal "this element floats abov
 - **Panel float** (`0 2px 4px rgba(16,24,40,.04), 0 20px 40px -12px rgba(16,24,40,.22)`): the whole panel against the host page.
 - **Launcher float** (`0 10px 24px -4px color-mix(in srgb, var(--kw-primary-color) 45%, transparent), 0 4px 10px rgba(16,24,40,.12)`): brand-tinted, so the launcher always reads as "the brand-colored thing floating on this page" regardless of org color.
 - **CTA/send glow** (`0 1px 2px rgba(16,24,40,.06), 0 4px 12px -2px color-mix(in srgb, var(--kw-primary-color, #2563eb) 40%, transparent)`): a soft brand-tinted glow under the one primary action per screen.
+- **Emoji picker float** (`0 12px 28px -10px rgba(16,24,40,.28)`, added 2026-08-24): the emoji picker panel, floating above the composer. A scoped exception to The Flat-Interior Rule below — it's a popover overlaying panel content, not a stacked card, so it gets a shadow the way the outer panel itself does.
 
 ### Named Rules
 
-**The Flat-Interior Rule.** Nothing inside the panel casts a shadow on anything else inside the panel. Elevation exists only at the panel/launcher's boundary with the host page, and on the one primary action per screen.
+**The Flat-Interior Rule.** Nothing inside the panel casts a shadow on anything else inside the panel. Elevation exists only at the panel/launcher's boundary with the host page, on the one primary action per screen, and on the emoji picker (a popover, floating above the composer — see Shadow Vocabulary).
 
 ## Shapes
 
@@ -224,6 +225,13 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 - **Visitor's own (inbound, right-aligned):** a light tint of the brand color (`color-mix(in srgb, var(--kw-primary-color) 14%, white)`) with Ink 900 text — not a solid brand fill — so the accent stays present without turning the visitor's whole message thread blue. Browsers without `color-mix` fall back to the older solid-brand-fill/white-text treatment under an `@supports` guard.
 - **Loading state:** skeleton placeholder rows reuse the same left/right alignment classes with a flat `var(--kw-border)` fill and a slow opacity pulse — never the bubble's real background color, so a skeleton is never mistaken for a very short real message.
 
+### Emoji Picker (signature component, added 2026-08-24)
+
+- **Panel:** anchored above the composer, `12px` radius, `1px` hairline border, `var(--kw-surface)` background, Emoji picker float shadow (see Elevation & Depth) — the same elevated-popover recipe as the outer panel, at a smaller scale.
+- **Search field:** `var(--kw-surface)` background, `1px` border, `8px` radius (a one-off, not part of the shared Shapes scale — this field doesn't need to match the 9–10px "field" tier elsewhere); focus treatment matches Inputs/Fields (border → `var(--kw-primary-color)`, soft color-mix ring).
+- **Grid:** emoji buttons are `36px` square, `7px` radius, transparent at rest, `var(--kw-surface-sunk)` on hover/focus — same sunk-on-interaction language as Ghost buttons.
+- **Trigger:** reuses the Ghost button style (no new button variant) next to the existing attach button.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -239,5 +247,5 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 - **Don't** use Ink 400 (`#98a2b3`) for text of any kind — icon strokes and borders only.
 - **Don't** add a second filled/brand-colored button on the same screen as the primary CTA.
 - **Don't** invent an unread-count number on the launcher badge — it's a boolean presence dot because no real count data exists in the store or API today. Wire real data first.
-- **Don't** add a functional-looking control (attachment icon, typing indicator, message reactions) that isn't actually wired to a real capability — every dead affordance in this widget was deliberately left out for exactly that reason.
+- **Don't** add a functional-looking control (e.g. message reactions) that isn't actually wired to a real capability — every dead affordance in this widget was deliberately left out for that reason. (Attachments and the emoji picker are real, wired exceptions — not dead affordances — see Components.)
 - **Don't** give the visitor's own message bubbles a solid, fully-saturated brand fill by default — the light tint is the chosen treatment; solid fill is the legacy/fallback path only.

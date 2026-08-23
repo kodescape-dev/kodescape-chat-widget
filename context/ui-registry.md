@@ -179,3 +179,27 @@ Last updated: 2026-08-21
 pill — there's no unread-count data anywhere in `ChatStore`/the API
 today. Don't add a number without first plumbing real count data;
 a fabricated number is worse than the dot.
+
+## Emoji picker (`.kw-emoji-picker`)
+
+File: `src/ui/emoji-picker.ts`, `src/ui/styles.css`
+Last updated: 2026-08-24
+
+| Property        | Value                                                                                     |
+| ---------------- | ------------------------------------------------------------------------------------------- |
+| Panel             | absolutely positioned above the composer (`bottom: 62px; left: 8px`), `min(300px, 100vw-32px)` wide, `360px` tall (`max-height: calc(100dvh - 120px)`) |
+| Background         | `var(--kw-surface)`, `1px solid var(--kw-border)`, radius `12px`, shadow `0 12px 28px -10px rgba(16,24,40,.28)` — same elevated-panel recipe as the widget's own panel shell, not a new one |
+| Search input       | `36px` tall, `var(--kw-surface)` bg, `1px solid var(--kw-border)`, radius `8px`; focus → border `var(--kw-primary-color)` + `2px` color-mix ring (matches Form field's focus treatment) |
+| Category heading   | sticky, `var(--kw-ink-500)`, `11px / 650` weight                                            |
+| Emoji grid         | `36px` cells, `7` per row, radius `7px`, transparent until hover/focus → `var(--kw-surface-sunk)` |
+| Trigger button      | reuses the existing `.kw-composer-action` icon-button class (same as the attach button) — no new trigger style |
+
+**Pattern notes:** the picker is a floating panel, not an inline
+expansion — it overlays above the composer like a native emoji picker,
+closes on outside pointerdown or `Escape`. Built entirely from tokens
+already defined in "Design tokens" above (`--kw-surface`, `--kw-border`,
+`--kw-ink-500/900`, `--kw-primary-color`) — no new color introduced for
+this component, matching this repo's convention of every surface tracing
+back to the same token set. Reuses the existing `.kw-composer-action`
+class for its own trigger button rather than a bespoke emoji-button
+style, keeping the attach/emoji/send row visually uniform.
