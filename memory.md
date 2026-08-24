@@ -68,7 +68,7 @@ Last updated: 2026-08-21
   `chat.gateway.ts` on the API side never echoes an inbound (visitor's
   own) message back over the socket — only `direction: outbound` (admin
   replies) get emitted to the visitor's room. So the `POST
-  /public/chat/messages` REST response itself is the sole confirmation a
+/public/chat/messages` REST response itself is the sole confirmation a
   sent message gets; the store design follows directly from that,
   reconciling the optimistic row by `clientMessageId` when the REST call
   resolves, not by any socket event.
@@ -128,14 +128,14 @@ Last updated: 2026-08-21
   already relies on it).
 - `pnpm install` reported `[ERR_PNPM_IGNORED_BUILDS]` for `esbuild`'s
   postinstall script. First tried the `package.json` `"pnpm":
-  {"onlyBuiltDependencies": [...]}` field (the old convention) — pnpm 11
+{"onlyBuiltDependencies": [...]}` field (the old convention) — pnpm 11
   silently ignores that field now. Fixed by creating
   `pnpm-workspace.yaml` with `allowBuilds: { esbuild: true }`, matching
   the convention already in use in `kodescape-cms-api`/`kodescape-admin`'s
   own `pnpm-workspace.yaml` files (found by checking those directly
   rather than guessing).
 - ESLint flagged the mount smoke test's fetch mock: an `async () =>
-  ({...})` with no `await` inside (`@typescript-eslint/require-await`),
+({...})` with no `await` inside (`@typescript-eslint/require-await`),
   and `String(input)` on a `RequestInfo | URL` union
   (`@typescript-eslint/no-base-to-string`). Fixed by dropping the
   unnecessary `async` (returning a plain object is fine since the real
@@ -146,19 +146,19 @@ Last updated: 2026-08-21
 - `preview_start({name: "chat-widget-dev"})` (from this repo's own
   `.claude/launch.json`, port 5173) failed with "Port 5001 is in use...
   not a preview server" — port 5001 is `kodescape-cms-api`'s dev-server
-  port from *that* repo's `.claude/launch.json`, not this one's. Root
+  port from _that_ repo's `.claude/launch.json`, not this one's. Root
   cause not fully diagnosed (possibly the tool resolving configs against
   the session's primary working directory rather than this repo).
   Worked around by starting `pnpm --dir <this-repo> dev` directly via
   Bash `run_in_background`, then `preview_start({url:
-  "http://localhost:5173"})` once the real port was confirmed from the
+"http://localhost:5173"})` once the real port was confirmed from the
   Vite log output. If this recurs, skip `preview_start({name})` for this
   repo and go straight to the manual Bash-background + `url` pattern.
 
 ## Current state
 
 - Fully implemented, verified clean: `tsc --noEmit`, `eslint .`, `vitest
-  run` (18/18), `vite build` (`dist/widget.js`, 56.28 kB / 17.92 kB
+run` (18/18), `vite build` (`dist/widget.js`, 56.28 kB / 17.92 kB
   gzip). Manually driven in a real browser via the dev harness against
   no live backend: launcher renders, panel opens/closes, Escape works,
   branding-fetch failure degrades gracefully (defaults stay in effect),
@@ -221,7 +221,7 @@ Last updated: 2026-08-21
   on the host page instead of the intended graceful degrade. Now chained
   with `.catch(() => store.setConnected(false))`.
 - Added `eslint.config.mjs`: `'no-empty': ['error', { allowEmptyCatch:
-  true }]` — needed after stripping explanatory comments from a few
+true }]` — needed after stripping explanatory comments from a few
   intentionally-empty `catch {}` blocks (ESLint's default `no-empty`
   only tolerates an empty catch if it contains a comment).
 - All comments added during the whole chat-widget build (this file's
@@ -254,7 +254,7 @@ Last updated: 2026-08-21
   `kodescape-cms-api`'s dev port, not this repo's configured 5173 — same
   unresolved tooling quirk noted in the prior entry. Worked around again
   with manual `pnpm --dir <repo> dev` via Bash background + `preview_start({url:
-  "http://localhost:5173"})` once the real port was confirmed from the
+"http://localhost:5173"})` once the real port was confirmed from the
   Vite log. Confirmed a second time — treat `preview_start({name})` as
   unreliable for this repo specifically and skip straight to the
   Bash-background + `url` pattern.
@@ -452,7 +452,7 @@ Last updated: 2026-08-21
 
 ## Current state
 
-- `tsc --noEmit`, `eslint` (now clean across the *whole* repo, not just
+- `tsc --noEmit`, `eslint` (now clean across the _whole_ repo, not just
   `src`), `vitest run` (19/19), `vite build` all clean.
 - Verified live in the Vite dev harness end-to-end (no live cms-api
   backend available in this sandbox, so verified against network
@@ -606,7 +606,7 @@ session, not just trusted from the agent's own report).
 ## Decisions made
 
 - **Direction naming caught a real spec/code mismatch**: this codebase's
-  `direction: 'inbound'` means the *visitor's own* sent message (it's
+  `direction: 'inbound'` means the _visitor's own_ sent message (it's
   "inbound" to the backend/admin side) — right-aligned, primary-colored
   bubble in this UI. The product spec's shorthand ("ticks on OUTBOUND/
   visitor's own messages") uses the opposite convention. Ticks render on
@@ -621,7 +621,7 @@ session, not just trusted from the agent's own report).
   should avoid).
 - **`DEFAULT_LEAD_SETTINGS`** (the pre-settings-load fallback in
   `mount.ts`) uses `contactCollectionMode: 'after_first_message'` per the
-  new production default. The *test fixture* default in
+  new production default. The _test fixture_ default in
   `tests/smoke/mount.test.ts`'s `widgetSettings()` helper was deliberately
   set to `'before_chat'` instead, to preserve every pre-existing test's
   original gated-entry assertions unchanged rather than rewriting them —
@@ -730,7 +730,7 @@ Last updated: 2026-08-24
   (e.g. after `git stash` to confirm HEAD alone was broken), then commit.
   Ask the user first — this is a repo-state change, not a docs edit.
 - Same standing cross-repo item: nothing in the whole Website Chat feature
-  has been committed as a *deliberate, reviewed* commit in any of the
+  has been committed as a _deliberate, reviewed_ commit in any of the
   three repos yet (this repo does have one prior commit, `437b1f1`, but it
   predates the emoji-picker addition and is the one now missing a file).
 
@@ -853,7 +853,6 @@ HEAD:src/ui/emoji-picker.ts` matches the working tree exactly. Updated
 
 - What creates these commits — not identified this session.
 
-
 ---
 
 # Memory — Website Chat: message:failed reconciliation
@@ -907,7 +906,6 @@ added the socket listener as a second trigger into that same mechanism.
 
 - None new this session.
 
-
 ---
 
 # Memory — Correction: this repo has pre-existing WIP this session never touched, plus the standing auto-commit pattern recurred here too
@@ -951,7 +949,6 @@ keeps recurring.
 
 Still unidentified.
 
-
 ---
 
 # Memory — Launcher "online dot" task abandoned as moot; evidence of a concurrent live editor in this working tree
@@ -971,13 +968,13 @@ by this session after that rejection.
 On returning to finish the task (during this `/remember save`), the
 **actual current `src/ui/launcher.ts` has no `setOnline`, no `onlineDot`,
 and no `.kw-launcher-online` at all** — replaced entirely by an unrelated
-unread-*count* badge (`setUnread(unread: number | boolean)`, "99+" cap)
+unread-_count_ badge (`setUnread(unread: number | boolean)`, "99+" cap)
 and an `updateAriaLabel()` improvement. This session never wrote that
 code. `git log` shows only the repo's original base commit for this file
 (no new commit captured it, unlike the earlier documented auto-commit
 pattern) — this is **uncommitted working-tree content that changed on its
 own**. `src/mount.ts`, `src/ui/message-list.ts`, `src/ui/styles.css`, and
-`tests/smoke/mount.test.ts` are all *also* modified beyond anything this
+`tests/smoke/mount.test.ts` are all _also_ modified beyond anything this
 session touched (413 combined diff lines across those four files), with
 file mtimes from 16:22 to 16:36 — a 35-minute window, all after this
 session's own last edit to any of them. `tsc`/`eslint` are clean against
@@ -1015,7 +1012,7 @@ Before touching `src/ui/launcher.ts`, `src/mount.ts`,
 user whether another session is actively working in this repo right now.
 If the "remove the green dot, keep online functionality" request is still
 wanted, it needs to be re-scoped against whatever `setOnline`/online-
-indicator implementation exists *then* — the one this session originally
+indicator implementation exists _then_ — the one this session originally
 saw is gone.
 
 ## Open questions
