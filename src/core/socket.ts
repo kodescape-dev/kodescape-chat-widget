@@ -1,6 +1,7 @@
 import { io, type Socket } from 'socket.io-client';
 import type {
   MessageNewEvent,
+  MessageFailedEvent,
   MessageReadEvent,
   MessageReactionsEvent,
   MessageStatusEvent,
@@ -9,6 +10,7 @@ import type {
 
 export interface ChatSocketHandlers {
   onMessageNew: (event: MessageNewEvent) => void;
+  onMessageFailed: (event: MessageFailedEvent) => void;
   onConnectionChange: (connected: boolean) => void;
   onReconnectBackfillNeeded: () => void;
   onMessageStatus: (event: MessageStatusEvent) => void;
@@ -43,6 +45,9 @@ export class ChatSocket {
     socket.on('message:new', (event: MessageNewEvent) => {
       handlers.onMessageNew(event);
     });
+    socket.on('message:failed', (event: MessageFailedEvent) => {
+      handlers.onMessageFailed(event);
+    });
     socket.on('message:status', (event: MessageStatusEvent) => {
       handlers.onMessageStatus(event);
     });
@@ -66,11 +71,11 @@ export class ChatSocket {
     });
   }
 
-  emitTypingStart(conversationId: string): void {
+  emitTypingStart(conversationId?: string): void {
     this.socket?.emit('typing:start', { conversationId });
   }
 
-  emitTypingStop(conversationId: string): void {
+  emitTypingStop(conversationId?: string): void {
     this.socket?.emit('typing:stop', { conversationId });
   }
 

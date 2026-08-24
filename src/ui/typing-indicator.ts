@@ -1,5 +1,8 @@
+import { createBrandMark, setBrandMarkImage } from './branding';
+
 export interface TypingIndicatorHandle {
   el: HTMLElement;
+  setSupportAvatar(avatarUrl: string | null): void;
   setParticipants(
     participants: Array<{
       id: string;
@@ -16,8 +19,7 @@ export function createTypingIndicator(): TypingIndicatorHandle {
   el.setAttribute('aria-hidden', 'true');
   el.setAttribute('role', 'status');
 
-  const avatars = document.createElement('span');
-  avatars.className = 'kw-typing-avatars';
+  const supportAvatar = createBrandMark('kw-typing-avatar');
 
   const dots = document.createElement('span');
   dots.className = 'kw-typing-dots';
@@ -27,10 +29,13 @@ export function createTypingIndicator(): TypingIndicatorHandle {
     dots.appendChild(dot);
   }
 
-  el.append(avatars, dots);
+  el.append(supportAvatar, dots);
 
   return {
     el,
+    setSupportAvatar(avatarUrl) {
+      setBrandMarkImage(supportAvatar, avatarUrl);
+    },
     setParticipants(participants) {
       el.hidden = participants.length === 0;
       el.setAttribute('aria-hidden', participants.length ? 'false' : 'true');
@@ -40,20 +45,9 @@ export function createTypingIndicator(): TypingIndicatorHandle {
           ? `${participants.map((participant) => participant.name).join(', ')} typing`
           : '',
       );
-      avatars.replaceChildren(
-        ...participants.slice(0, 3).map((participant) => {
-          const avatar = document.createElement('span');
-          avatar.className = 'kw-typing-avatar';
-          avatar.title = `${participant.name} is typing`;
-          avatar.textContent =
-            participant.name.trim().charAt(0).toUpperCase() || 'A';
-          if (participant.avatarUrl) {
-            avatar.style.backgroundImage = `url("${participant.avatarUrl.replaceAll('"', '%22')}")`;
-            avatar.classList.add('kw-typing-avatar--image');
-          }
-          return avatar;
-        }),
-      );
+      supportAvatar.title = participants.length
+        ? `${participants.map((participant) => participant.name).join(', ')} typing`
+        : '';
     },
   };
 }

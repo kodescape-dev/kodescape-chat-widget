@@ -1,7 +1,7 @@
 export interface LauncherHandle {
   el: HTMLButtonElement;
   setOpen(open: boolean): void;
-  setUnread(unread: boolean): void;
+  setUnread(unread: number | boolean): void;
   configure(config: {
     style: 'icon' | 'label_icon';
     label: string;
@@ -25,6 +25,7 @@ export function createLauncher(onClick: () => void): LauncherHandle {
   button.setAttribute('aria-expanded', 'false');
   button.setAttribute('aria-label', 'Open chat');
   let isOpen = false;
+  let unreadCount = 0;
   let config: Parameters<LauncherHandle['configure']>[0] = {
     style: 'icon',
     label: 'Chat with us',
@@ -49,6 +50,17 @@ export function createLauncher(onClick: () => void): LauncherHandle {
       : `${config.style === 'label_icon' ? `<span class="kw-launcher-label">${escapeHtml(config.label)}</span><span class="kw-launcher-divider" aria-hidden="true"></span>` : ''}${config.icon === 'message' ? MESSAGE_ICON : CHAT_ICON}`;
     button.appendChild(badge);
   }
+
+  function updateAriaLabel(): void {
+    button.setAttribute(
+      'aria-label',
+      isOpen
+        ? 'Close chat'
+        : unreadCount > 0
+          ? `Open chat, ${unreadCount} unread ${unreadCount === 1 ? 'message' : 'messages'}`
+          : 'Open chat',
+    );
+  }
   render();
 
   return {
@@ -56,11 +68,19 @@ export function createLauncher(onClick: () => void): LauncherHandle {
     setOpen(open) {
       isOpen = open;
       button.setAttribute('aria-expanded', String(open));
-      button.setAttribute('aria-label', open ? 'Close chat' : 'Open chat');
+      updateAriaLabel();
       render();
     },
     setUnread(unread) {
-      badge.hidden = !unread;
+      unreadCount =
+        typeof unread === 'number'
+          ? Math.max(0, Math.floor(unread))
+          : unread
+            ? 1
+            : 0;
+      badge.hidden = unreadCount === 0;
+      badge.textContent = unreadCount > 99 ? '99+' : String(unreadCount);
+      updateAriaLabel();
     },
     configure(next) {
       config = next;

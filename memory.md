@@ -852,3 +852,219 @@ HEAD:src/ui/emoji-picker.ts` matches the working tree exactly. Updated
 ## Open questions
 
 - What creates these commits — not identified this session.
+
+
+---
+
+# Memory — Website Chat: message:failed reconciliation
+
+Last updated: 2026-08-24
+
+## What was built
+
+- `kodescape-cms-api` moved message-send durability from Mongo-before-broadcast
+  to a Redis Stream-before-broadcast boundary (background Mongo persistence,
+  bounded retries, dead-letter) — see that repo's `docs/WEBSITE-CHAT.md`
+  "Message durability" section for the full design. This repo's part: react
+  to the new `message:failed` socket event when a background persist
+  permanently fails.
+- `src/core/types.ts`: new `MessageFailedEvent` type.
+- `src/core/socket.ts`: `ChatSocketHandlers` gained `onMessageFailed`; wired
+  `socket.on('message:failed', ...)`.
+- `src/mount.ts`: `onMessageFailed` calls `store.markFailed(event.clientMessageId)`
+  — this method and the `'failed'` status it sets already existed
+  (`src/core/store.ts`, built for the REST-send-failure case, with an
+  existing `retry()` affordance and render support in
+  `src/ui/message-list.ts`). This session only added a second source
+  (the socket event) feeding the exact same, already-working state machine
+  — no new UI, no new store method, no send-call-site change.
+
+## Decisions made
+
+- Reconciliation keys on `clientMessageId` (matching `kodescape-admin`'s
+  identical choice and the backend's emission contract) — the id this
+  store already tracks pending/sending messages by, before any server id
+  exists.
+
+## Problems solved
+
+None — the hard part (the `'failed'` status, `retry()`, and its render
+path) was already built from the REST-failure case; this session just
+added the socket listener as a second trigger into that same mechanism.
+
+## Current state
+
+- `tsc`/`eslint` clean. Full suite: 47/47 passing. `vite build` clean.
+- Nothing committed — same standing state as every prior Website Chat
+  session in this repo.
+
+## Next session starts with
+
+- Nothing outstanding for this change. See `kodescape-cms-api`'s
+  `memory.md` (same date) for the full cross-repo picture.
+
+## Open questions
+
+- None new this session.
+
+
+---
+
+# Memory — Correction: this repo has pre-existing WIP this session never touched, plus the standing auto-commit pattern recurred here too
+
+Last updated: 2026-08-24 (same day, later)
+
+## What was built
+
+Nothing — two corrections found during a final git-status sweep. First:
+this repo has an unrelated, pre-existing, uncommitted feature (`src/ui/launcher.ts`
+gained a `setOnline()` method + an "online dot" indicator, with a matching
+`tests/smoke/mount.test.ts` case) that predates this session and was never
+touched by it — confirmed via full diff read, genuine unrelated work, left
+exactly as found. Second: this session's own `message:failed` changes
+(`src/core/socket.ts`, `src/core/types.ts`, `src/mount.ts`) remain
+uncommitted here (unlike `kodescape-cms-api`/`kodescape-admin`, no
+mid-session auto-commit fired in this repo this time) — but this file's
+existing commit `96009c4` "Add support for replies, internal notes,
+mentions, and reactions" is itself one of the previously-documented
+unexplained auto-commits (see this file's earlier entry on the topic),
+confirming the pattern isn't repo-specific and isn't a one-off.
+
+## Decisions made
+
+Same as this file's earlier documented instance: did not reset/amend/
+revert anything, flagged to the user instead.
+
+## Current state
+
+`kodescape-cms-api` and `kodescape-admin` both auto-committed mid-session
+this time (not just between sessions, as previously documented) — see
+their own `memory.md`. This repo happened not to, this session — that
+looks like inconsistent timing/triggering, not this repo being exempt.
+
+## Next session starts with
+
+Same standing item — worth investigating what's auto-committing if it
+keeps recurring.
+
+## Open questions
+
+Still unidentified.
+
+
+---
+
+# Memory — Launcher "online dot" task abandoned as moot; evidence of a concurrent live editor in this working tree
+
+Last updated: 2026-08-24 (same day, later)
+
+## What was built
+
+Nothing net — this entry exists to record a real anomaly, not a change.
+Earlier this session, asked to remove the green "online" dot from the
+launcher bubble (keep `setOnline`/presence functionality working), one
+edit was made (deleted the `setOnline` line from the `LauncherHandle`
+interface in `src/ui/launcher.ts`), then the user rejected the follow-up
+restore edit and said to stop. No further action was taken on this file
+by this session after that rejection.
+
+On returning to finish the task (during this `/remember save`), the
+**actual current `src/ui/launcher.ts` has no `setOnline`, no `onlineDot`,
+and no `.kw-launcher-online` at all** — replaced entirely by an unrelated
+unread-*count* badge (`setUnread(unread: number | boolean)`, "99+" cap)
+and an `updateAriaLabel()` improvement. This session never wrote that
+code. `git log` shows only the repo's original base commit for this file
+(no new commit captured it, unlike the earlier documented auto-commit
+pattern) — this is **uncommitted working-tree content that changed on its
+own**. `src/mount.ts`, `src/ui/message-list.ts`, `src/ui/styles.css`, and
+`tests/smoke/mount.test.ts` are all *also* modified beyond anything this
+session touched (413 combined diff lines across those four files), with
+file mtimes from 16:22 to 16:36 — a 35-minute window, all after this
+session's own last edit to any of them. `tsc`/`eslint` are clean against
+this new content, so whatever produced it is coherent, working code — not
+corruption.
+
+## Decisions made
+
+Did not touch `launcher.ts` (or the other three files) further — the
+original "remove the dot" task is moot (the feature it targeted doesn't
+exist in the current file), and continuing to edit a file that's
+demonstrably being actively written by something else right now risks a
+real conflict, not just a documentation surprise. Flagged to the user
+instead of guessing or reverting.
+
+## Problems solved
+
+None. Pure finding.
+
+## Current state
+
+`src/ui/launcher.ts`, `src/mount.ts`, `src/ui/message-list.ts`,
+`src/ui/styles.css`, and `tests/smoke/mount.test.ts` all contain real,
+compiling, lint-clean feature work (unread-count badge, ARIA labels, and
+whatever the message-list/styles changes turn out to be — not reviewed in
+depth this session) that nobody in this session's own history wrote. If
+the user has another Claude Code session (or another editor) open on this
+exact repo, that's almost certainly the source — this reads like live
+concurrent editing, not a corrupted/stale checkout.
+
+## Next session starts with
+
+Before touching `src/ui/launcher.ts`, `src/mount.ts`,
+`src/ui/message-list.ts`, or `src/ui/styles.css` again: confirm with the
+user whether another session is actively working in this repo right now.
+If the "remove the green dot, keep online functionality" request is still
+wanted, it needs to be re-scoped against whatever `setOnline`/online-
+indicator implementation exists *then* — the one this session originally
+saw is gone.
+
+## Open questions
+
+Same standing "what creates the auto-commits" question, plus a new one:
+what is live-editing this working tree outside this session, and is it
+safe to assume it'll keep not colliding with future edits here.
+
+---
+
+# Memory — Chat widget conversation polish and design documentation
+
+Last updated: 2026-08-24 18:36 +06
+
+## What was built
+
+- Finalized the production widget and Admin preview conversation presentation: compact messages/attachments, replies and reactions on every bubble, realtime typing, message identity, unread launcher count, and matching preview behavior through the shared iframe renderer.
+- Message sender/time metadata is hidden at rest. Clicking or keyboard-activating one bubble reveals sender, timestamp, and its sent/delivered/read check together below that message. Delivery checks no longer render alone under every visitor message.
+- Today/Yesterday separators are plain centered text with no pill background, radius, border, or horizontal padding.
+- Composer is a flat full-width surface with one top divider, multiline “Enter your message…” input, hidden textarea scrollbar, attachment/emoji tools, “Powered by Kodescape,” and an unfilled accent send icon. Removed the duplicate inner divider and legacy rounded pill input.
+- Typing indicators use the support identity used by normal messages, animated dots, no outer background, and slight top spacing. Attachments stay compact, clear optimistically on send, place message copy below media, and reveal a download control on hover.
+- Ran repo-local `/imprint` and appended the resulting patterns to `context/ui-registry.md`. Ran Impeccable Document in merge mode, updating `DESIGN.md` and `.impeccable/design.json` without replacing the established design system.
+
+## Decisions made
+
+- `WidgetPreview` continues to embed `/preview.html`; design and interaction changes belong in the production widget renderer once, never in a separate Admin-only visual copy.
+- Presence may remain functional without a closed-launcher online dot. The visible launcher badge represents real unread state only.
+- The widget interior remains flat. Shadows are reserved for the panel/launcher and true floating overlays such as the emoji picker or attachment download affordance.
+- Existing memory is append-only for this handoff. No prior memory block was overwritten.
+
+## Problems solved
+
+- Removed the duplicate composer line caused by simultaneous borders on `.kw-composer` and `.kw-composer-row`.
+- Moved delivery/read receipt markup into the click-disclosed metadata row.
+- Removed stale pill styling from both base and responsive date-separator rules.
+- Updated the Impeccable sidecar's obsolete pill-composer example and stale unread-presence prohibition.
+
+## Current state
+
+- Prettier, ESLint, TypeScript, targeted unit/smoke tests, and `vite build` passed for the widget changes. The latest widget verification reported 21 relevant tests passing and a successful production build.
+- Current files may still include coherent changes from another active session/editor documented in earlier memory blocks. Those changes were preserved, not reverted or rewritten wholesale.
+- Nothing was pushed in this session.
+
+## Next session starts with
+
+- Confirm no other session is actively editing `src/ui/launcher.ts`, `src/mount.ts`, `src/ui/message-list.ts`, or `src/ui/styles.css` before changing them.
+- Verify live widget and Admin preview side by side: click-disclosed metadata/receipt, plain date captions, flat composer, typing animation, attachment ordering/download, and real unread count.
+- Inspect the full dirty diff before any commit and preserve unrelated/manual work.
+
+## Open questions
+
+- The previously observed source of concurrent working-tree edits and automatic commits remains unidentified.

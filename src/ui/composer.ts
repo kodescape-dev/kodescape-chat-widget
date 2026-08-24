@@ -1,4 +1,5 @@
 import type { MessageAttachment, MessageReply } from '../core/types';
+import { createPoweredBy } from './branding';
 import { createEmojiPicker } from './emoji-picker';
 
 export interface ComposerSubmission {
@@ -55,6 +56,15 @@ export function createComposer(handlers: {
   const row = document.createElement('div');
   row.className = 'kw-composer-row';
 
+  const inputRow = document.createElement('div');
+  inputRow.className = 'kw-composer-input-row';
+
+  const toolbar = document.createElement('div');
+  toolbar.className = 'kw-composer-toolbar';
+
+  const tools = document.createElement('div');
+  tools.className = 'kw-composer-tools';
+
   const fileInput = document.createElement('input');
   fileInput.type = 'file';
   fileInput.multiple = true;
@@ -70,7 +80,7 @@ export function createComposer(handlers: {
   const textarea = document.createElement('textarea');
   textarea.className = 'kw-composer-input';
   textarea.rows = 1;
-  textarea.placeholder = 'Write your message…';
+  textarea.placeholder = 'Enter your message...';
   textarea.setAttribute('aria-label', 'Message');
   textarea.maxLength = 4000;
   inputWrap.appendChild(textarea);
@@ -79,6 +89,7 @@ export function createComposer(handlers: {
   emojiButton.setAttribute('aria-expanded', 'false');
   const emojiPicker = createEmojiPicker((emoji) => {
     insertAtCursor(textarea, emoji);
+    resizeTextarea();
     setPickerOpen(false);
     handlers.onInput?.(textarea.value);
   });
@@ -93,8 +104,16 @@ export function createComposer(handlers: {
   sendButton.setAttribute('aria-label', 'Send message');
   sendButton.innerHTML = SEND_ICON;
 
-  row.append(attachButton, emojiButton, inputWrap, sendButton);
+  inputRow.append(inputWrap, sendButton);
+  tools.append(attachButton, emojiButton);
+  toolbar.append(tools, createPoweredBy());
+  row.append(inputRow, toolbar);
   form.append(fileInput, replyPreview, selected, picker, row);
+
+  function resizeTextarea(): void {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`;
+  }
 
   function setPickerOpen(open: boolean): void {
     if (open) emojiPicker.open();
@@ -121,6 +140,7 @@ export function createComposer(handlers: {
       replyToMessageId: reply?.messageId,
     });
     textarea.value = '';
+    resizeTextarea();
     for (const item of files)
       if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
     files = [];
@@ -234,7 +254,10 @@ export function createComposer(handlers: {
       submit();
     }
   });
-  textarea.addEventListener('input', () => handlers.onInput?.(textarea.value));
+  textarea.addEventListener('input', () => {
+    resizeTextarea();
+    handlers.onInput?.(textarea.value);
+  });
   textarea.addEventListener('blur', () => handlers.onInput?.(''));
   textarea.addEventListener('paste', (event) => {
     const images = Array.from(event.clipboardData?.files ?? []).filter((file) =>
@@ -276,7 +299,7 @@ export function createComposer(handlers: {
       emojiButton.disabled = disabled;
     },
     setPlaceholder(placeholder) {
-      textarea.placeholder = placeholder || 'Write your message…';
+      textarea.placeholder = placeholder || 'Enter your message...';
     },
     setReply,
     destroy() {

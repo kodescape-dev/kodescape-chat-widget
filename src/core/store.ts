@@ -12,6 +12,7 @@ export interface LocalMessage {
   id: string | null;
   clientMessageId: string;
   direction: 'inbound' | 'outbound';
+  senderName: string | null;
   content: string;
   attachments?: MessageAttachment[];
   replyTo?: MessageReply | null;
@@ -58,6 +59,7 @@ export class ChatStore {
       id: null,
       clientMessageId,
       direction: 'inbound',
+      senderName: null,
       content,
       attachments,
       replyTo,
@@ -83,6 +85,7 @@ export class ChatStore {
       pending.id = server.id;
       pending.createdAt = server.createdAt;
       pending.status = server.status;
+      pending.senderName = server.senderName;
       pending.attachments = server.attachments ?? [];
       pending.replyTo = server.replyTo ?? null;
       pending.reactions = server.reactions ?? [];
@@ -91,6 +94,7 @@ export class ChatStore {
         id: server.id,
         clientMessageId,
         direction: server.direction,
+        senderName: server.senderName,
         content: server.content,
         attachments: server.attachments ?? [],
         replyTo: server.replyTo ?? null,
@@ -132,6 +136,7 @@ export class ChatStore {
         existingByClientId.id = item.id;
         existingByClientId.createdAt = item.createdAt;
         existingByClientId.status = item.status;
+        existingByClientId.senderName = item.senderName;
         existingByClientId.replyTo = item.replyTo ?? null;
         existingByClientId.reactions = item.reactions ?? [];
         changed = true;
@@ -141,6 +146,7 @@ export class ChatStore {
         id: item.id,
         clientMessageId: item.clientMessageId,
         direction: item.direction,
+        senderName: item.senderName,
         content: item.content,
         attachments: item.attachments ?? [],
         replyTo: item.replyTo ?? null,

@@ -221,9 +221,24 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 
 ### Message Bubbles (signature component)
 
-- **Admin (outbound, left-aligned):** white fill, hairline border, Ink 900 text.
-- **Visitor's own (inbound, right-aligned):** a light tint of the brand color (`color-mix(in srgb, var(--kw-primary-color) 14%, white)`) with Ink 900 text — not a solid brand fill — so the accent stays present without turning the visitor's whole message thread blue. Browsers without `color-mix` fall back to the older solid-brand-fill/white-text treatment under an `@supports` guard.
-- **Loading state:** skeleton placeholder rows reuse the same left/right alignment classes with a flat `var(--kw-border)` fill and a slow opacity pulse — never the bubble's real background color, so a skeleton is never mistaken for a very short real message.
+- **Support/admin (outbound, left-aligned):** neutral tonal fill, Ink 900 text, no shadow. The support name and avatar use the real message identity.
+- **Visitor's own (inbound, right-aligned):** a light tint of the brand color (`color-mix(in srgb, var(--kw-primary-color) 12–14%, var(--kw-surface))`) with Ink 900 text — not a solid brand fill — so the accent stays present without turning the visitor's whole message thread into a brand block.
+- **Metadata disclosure:** sender, timestamp, and delivery/read check are hidden at rest. Clicking or keyboard-activating one bubble reveals all three together immediately below only that message. Delivery checks never float alone under every message.
+- **Dates:** Today and Yesterday are plain centered captions with no background, border, radius, or horizontal padding.
+- **Attachments:** compact previews render before message copy, so any accompanying text appears below the attachment. Hover reveals a small top-right download action.
+- **Loading state:** skeleton placeholder rows reuse the same left/right alignment and avatar geometry with a flat token fill and a slow opacity pulse — never the bubble's real background color, so a skeleton is never mistaken for a short real message.
+
+### Composer (signature component, updated 2026-08-24)
+
+- **Surface:** one flat `var(--kw-surface)` dock with one full-width top divider. The inner row has no second border, rounded pill, or shadow.
+- **Input:** multiline `13.5px` text, 44–120px height, hidden scrollbar, placeholder “Enter your message…”. Sending clears text and staged attachments immediately.
+- **Toolbar:** attachment and emoji actions sit below the input; “Powered by Kodescape” occupies the opposite end. Send is a brand-colored icon without a filled circular container.
+- **Preview contract:** Admin's website-chat preview embeds this exact renderer. Never fork composer markup or styles for preview-only polish.
+
+### Typing Indicator
+
+- Realtime typing sits directly above the composer with slight top spacing, one normal support avatar, and genuinely animated dots inside a compact neutral bubble.
+- The typing row itself has no background. Static three-dot decoration is a broken state, not a fallback.
 
 ### Emoji Picker (signature component, added 2026-08-24)
 
@@ -253,6 +268,6 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 
 - **Don't** use Ink 400 (`#98a2b3`) for text of any kind — icon strokes and borders only.
 - **Don't** add a second filled/brand-colored button on the same screen as the primary CTA.
-- **Don't** invent an unread-count number on the launcher badge — it's a boolean presence dot because no real count data exists in the store or API today. Wire real data first.
+- **Don't** fabricate unread or presence state. The launcher badge is backed by the real unread count; presence may remain functional without drawing an online dot on the closed launcher.
 - **Don't** add a functional-looking control unless it is wired end to end. Attachments, emoji insertion, replies, and reactions are persisted capabilities; their preview equivalents use the same renderer with isolated local state.
 - **Don't** give the visitor's own message bubbles a solid, fully-saturated brand fill by default — the light tint is the chosen treatment; solid fill is the legacy/fallback path only.

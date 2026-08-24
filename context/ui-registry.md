@@ -211,3 +211,81 @@ this component, matching this repo's convention of every surface tracing
 back to the same token set. Reuses the existing `.kw-composer-action`
 class for its own trigger button rather than a bespoke emoji-button
 style, keeping the attach/emoji/send row visually uniform.
+
+---
+
+## Session Imprint — Conversation Surface Refinement
+
+Last updated: 2026-08-24 18:36 +06
+
+### Flat Chat Composer
+
+Files: `src/ui/composer.ts`, `src/ui/styles.css`
+
+| Property         | Value |
+| ---------------- | ----- |
+| Background       | one continuous `var(--kw-surface)` surface |
+| Border           | one full-width `1px solid var(--kw-border)` top divider on `.kw-composer`; `.kw-composer-row` has no second border |
+| Border radius    | none on the composer row and input wrapper; compact action buttons use `8px` |
+| Text — primary   | textarea `13.5px`, `22px` line-height; placeholder “Enter your message…” |
+| Text — secondary | powered-by mark uses the quiet caption role |
+| Spacing          | composer `padding: 0 14px 9px`; textarea `min-height: 44px`, `max-height: 120px`; toolbar `min-height: 34px` |
+| Hover state      | icon/send actions use `var(--kw-surface-sunk)` only on interaction |
+| Shadow           | none |
+| Accent usage     | send icon uses `var(--kw-primary-color)` without a filled circle |
+
+**Pattern notes:** The previous rounded pill input is retired. Multiline input grows without exposing a scrollbar. Attachment and emoji controls sit in the lower toolbar beside “Powered by Kodescape.” Clearing a send clears text and staged attachments immediately. The Admin live preview renders this same production implementation rather than maintaining a visual copy.
+
+### Message Disclosure, Receipts, and Date Labels
+
+Files: `src/ui/message-list.ts`, `src/ui/styles.css`
+
+| Property         | Value |
+| ---------------- | ----- |
+| Background       | message bubbles use existing direction surfaces; Today/Yesterday labels are transparent |
+| Border           | date labels have no border; reaction chips retain their compact hairline |
+| Border radius    | no radius on date labels; message bubbles retain `14px` with direction-specific tail corners |
+| Text — primary   | bubble content `13.5px`; sender metadata `10px` with `font-weight: 600` |
+| Text — secondary | timestamps and delivery state use `var(--kw-ink-500)` |
+| Spacing          | date labels use plain text with `padding: 0`; hidden metadata sits immediately below the selected bubble |
+| Hover state      | reactions/reply toolbar stays attached to the actual bubble; touch keeps actions reachable |
+| Shadow           | none on bubbles, dates, or reaction chips |
+| Accent usage     | read receipt may use primary; other states stay neutral |
+
+**Pattern notes:** Sender, timestamp, and delivery/read check are hidden at rest. Clicking or keyboard-activating a message reveals them together below only that message; the check follows the time and never floats alone under every visitor message. Today and Yesterday are plain centered captions, not rounded pills. Reactions render below the actual message and replies use compact, less-rounded quoted previews with sender name plus content only.
+
+### Attachments and Typing Indicator
+
+Files: `src/ui/message-list.ts`, `src/ui/typing-indicator.ts`, `src/ui/styles.css`
+
+| Property         | Value |
+| ---------------- | ----- |
+| Background       | typing dots use a small neutral bubble; no outer typing-row background |
+| Border           | attachment previews and typing bubble use the existing hairline token |
+| Border radius    | attachment preview follows message geometry; typing bubble stays compact and rounded |
+| Text — primary   | attachment message copy renders below the attachment |
+| Text — secondary | attachment metadata and typing state use caption tokens |
+| Spacing          | typing section receives slight top spacing; support avatar matches normal support messages |
+| Hover state      | image attachments reveal a small top-right download control |
+| Shadow           | only floating download/emoji controls may use the established overlay shadow |
+| Accent usage     | typing identity uses the real support image; visitor initials use one first letter only |
+
+**Pattern notes:** Attachment media stays compact in both widget and preview. Typing indicators are realtime, animated, and placed immediately above the composer; never render static dots. The visitor side shows the support identity used by messages, while Admin receives visitor typing through the shared socket contract.
+
+### Launcher and Unread State
+
+Files: `src/ui/launcher.ts`, `src/ui/styles.css`
+
+| Property         | Value |
+| ---------------- | ----- |
+| Background       | dynamic brand color for the icon segment; label surface remains restrained |
+| Border           | one subtle outer edge; no online-status dot |
+| Border radius    | compact label-plus-icon silhouette, fully rounded only at the launcher boundary |
+| Text — primary   | launcher label uses medium weight |
+| Text — secondary | none |
+| Spacing          | label and icon align centrally with a single internal separator |
+| Hover state      | brightness/tonal feedback without geometry change |
+| Shadow           | launcher float shadow only |
+| Accent usage     | unread count uses a small high-contrast badge backed by real store state |
+
+**Pattern notes:** Presence remains functional but is not visualized on the closed launcher. Unread is count-backed and updates when messages are read; do not substitute a decorative online dot or fabricated count.

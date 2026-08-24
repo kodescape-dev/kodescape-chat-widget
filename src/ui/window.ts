@@ -8,11 +8,7 @@ import type { LeadCaptureConfig, LeadCaptureData } from './lead-capture';
 import { createContactPrompt } from './contact-prompt';
 import type { ContactPromptConfig, ContactPromptData } from './contact-prompt';
 import { renderLoadingSkeleton, clearLoadingSkeleton } from './message-list';
-import {
-  createBrandMark,
-  createPoweredBy,
-  setBrandMarkImage,
-} from './branding';
+import { createBrandMark, setBrandMarkImage } from './branding';
 
 export interface ChatWindowHandle {
   el: HTMLElement;
@@ -230,15 +226,7 @@ export function createChatWindow(handlers: {
     onDismiss: handlers.onContactPromptDismiss,
   });
 
-  const chatFooter = createPoweredBy();
-
-  chatView.append(
-    list,
-    contactPrompt.el,
-    typingIndicator.el,
-    composer.el,
-    chatFooter,
-  );
+  chatView.append(list, contactPrompt.el, typingIndicator.el, composer.el);
 
   const body = document.createElement('div');
   body.className = 'kw-body';
@@ -309,6 +297,7 @@ export function createChatWindow(handlers: {
       title.textContent = name || 'Chat with us';
       statusText.textContent = subtitle || 'Connecting…';
       setBrandMarkImage(headerBrand, avatarUrl);
+      typingIndicator.setSupportAvatar(avatarUrl);
       presenceAvatar.childNodes[0]?.remove();
       presenceAvatar.prepend(
         document.createTextNode(

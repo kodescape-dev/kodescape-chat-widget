@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-08-24T00:00:00Z",
+  "generatedAt": "2026-08-24T12:36:00Z",
   "title": "Design System: Kodescape Chat Widget",
   "extensions": {
     "colorMeta": {
@@ -267,9 +267,9 @@
       "name": "Composer",
       "kind": "input",
       "refersTo": "composer",
-      "description": "Pill text input plus a circular brand-fill send button — unique to the composer, not reused elsewhere.",
-      "html": "<form class=\"ds-composer\"><div class=\"ds-composer-input-wrap\"><input class=\"ds-composer-input\" placeholder=\"Type your message…\" /></div><button class=\"ds-composer-send\" type=\"submit\" aria-label=\"Send message\"><svg viewBox=\"0 0 24 24\" width=\"17\" height=\"17\" fill=\"none\"><path d=\"M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z\" stroke=\"#fff\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></form>",
-      "css": ".ds-composer { display: flex; align-items: center; gap: 8px; padding: 14px 16px; background: #fff; border-top: 1px solid #e5e7eb; } .ds-composer-input-wrap { flex: 1; display: flex; align-items: center; background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 22px; padding: 0 14px; } .ds-composer-input-wrap:focus-within { border-color: #2563eb; background: #fff; } .ds-composer-input { flex: 1; border: none; background: transparent; padding: 10px 0; font: 400 13.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; color: #101828; } .ds-composer-input:focus { outline: none; } .ds-composer-input::placeholder { color: #667085; } .ds-composer-send { width: 42px; height: 42px; border-radius: 50%; border: none; background: #2563eb; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px -1px rgba(37,99,235,.45); }"
+      "description": "Flat full-width chat dock with multiline input, lower attachment/emoji toolbar, powered-by mark, and unfilled accent send icon.",
+      "html": "<form class=\"ds-composer\"><div class=\"ds-composer-row\"><div class=\"ds-composer-input-row\"><textarea class=\"ds-composer-input\" placeholder=\"Enter your message…\"></textarea><button class=\"ds-composer-send\" type=\"submit\" aria-label=\"Send message\"><svg viewBox=\"0 0 24 24\" width=\"19\" height=\"19\" fill=\"none\"><path d=\"M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button></div><div class=\"ds-composer-toolbar\"><span class=\"ds-composer-tools\">⌕　☺</span><small>POWERED BY KODESCAPE</small></div></div></form>",
+      "css": ".ds-composer { display: flex; flex-direction: column; padding: 0 14px 9px; background: #fff; border-top: 1px solid #e5e7eb; } .ds-composer-row { display: flex; flex-direction: column; gap: 2px; border: 0; border-radius: 0; } .ds-composer-input-row { display: flex; align-items: flex-end; gap: 8px; } .ds-composer-input { flex: 1; min-height: 44px; max-height: 120px; overflow: hidden; resize: none; padding: 11px 0 7px; border: 0; border-radius: 0; background: transparent; color: #101828; font: 400 13.5px/22px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; } .ds-composer-input:focus { outline: none; } .ds-composer-input::placeholder { color: #667085; } .ds-composer-send { width: 36px; height: 44px; border: 0; border-radius: 8px; background: transparent; color: #2563eb; cursor: pointer; } .ds-composer-send:hover { background: #f7f8fa; } .ds-composer-send:focus-visible { outline: 2px solid #2563eb; outline-offset: 1px; } .ds-composer-toolbar { display: flex; min-height: 34px; align-items: center; justify-content: space-between; gap: 12px; color: #667085; } .ds-composer-toolbar small { font-size: 9px; letter-spacing: .035em; }"
     },
     {
       "name": "Emoji Picker",
@@ -322,7 +322,7 @@
     "donts": [
       "Don't use Ink 400 (#98a2b3) for text of any kind — icon strokes and borders only.",
       "Don't add a second filled/brand-colored button on the same screen as the primary CTA.",
-      "Don't invent an unread-count number on the launcher badge — it's a boolean presence dot because no real count data exists in the store or API today. Wire real data first.",
+      "Don't fabricate unread or presence state. The launcher badge uses the real unread count; presence may remain functional without drawing an online dot on the closed launcher.",
       "Don't add a functional-looking control (e.g. message reactions) that isn't actually wired to a real capability. (Attachments and the emoji picker are real, wired exceptions.)",
       "Don't give the visitor's own message bubbles a solid, fully-saturated brand fill by default — the light tint is the chosen treatment; solid fill is the legacy/fallback path only."
     ]

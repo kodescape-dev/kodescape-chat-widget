@@ -10,6 +10,8 @@ const SINGLE_CHECK_ICON =
   '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M3 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const DOUBLE_CHECK_ICON =
   '<svg viewBox="0 0 16 16" fill="none" aria-hidden="true"><path d="M1 8.5l3 3 7-7M6 8.5l3 3 7-7" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const DOWNLOAD_ICON =
+  '<svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 3v9m0 0 3.25-3.25M10 12 6.75 8.75M4 15.5h12" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
 const STATUS_LABELS: Partial<Record<LocalMessageStatus, string>> = {
   sent: 'Sent',
@@ -19,26 +21,55 @@ const STATUS_LABELS: Partial<Record<LocalMessageStatus, string>> = {
 
 const SKELETON_ROWS: ReadonlyArray<{
   direction: 'inbound' | 'outbound';
-  widthPx: number;
+  bubbleWidthPx: number;
+  showAvatar?: boolean;
 }> = [
-  { direction: 'outbound', widthPx: 190 },
-  { direction: 'outbound', widthPx: 120 },
-  { direction: 'inbound', widthPx: 140 },
-  { direction: 'outbound', widthPx: 210 },
+  { direction: 'outbound', bubbleWidthPx: 184, showAvatar: true },
+  { direction: 'outbound', bubbleWidthPx: 126 },
+  { direction: 'inbound', bubbleWidthPx: 156 },
+  { direction: 'outbound', bubbleWidthPx: 210, showAvatar: true },
 ];
 
 export function renderLoadingSkeleton(container: HTMLElement): void {
   container.textContent = '';
   container.setAttribute('aria-busy', 'true');
-  for (const row of SKELETON_ROWS) {
+  container.setAttribute('aria-label', 'Loading conversation');
+
+  const date = document.createElement('div');
+  date.className = 'kw-skeleton-date';
+  date.setAttribute('aria-hidden', 'true');
+  container.appendChild(date);
+
+  for (const [index, row] of SKELETON_ROWS.entries()) {
     const wrap = document.createElement('div');
-    wrap.className = `kw-bubble-row kw-bubble-row--${row.direction}`;
+    wrap.className = `kw-skeleton-row kw-skeleton-row--${row.direction}`;
+    if (row.direction === 'outbound' && !row.showAvatar) {
+      wrap.classList.add('kw-skeleton-row--grouped');
+    }
+    wrap.style.setProperty('--kw-skeleton-index', String(index));
     wrap.setAttribute('aria-hidden', 'true');
+
+    const meta = document.createElement('div');
+    meta.className = 'kw-skeleton-meta';
+    const name = document.createElement('span');
+    name.className = 'kw-skeleton-name';
+    const time = document.createElement('span');
+    time.className = 'kw-skeleton-time';
+    meta.append(name, time);
+
+    const line = document.createElement('div');
+    line.className = 'kw-skeleton-line';
+    if (row.showAvatar) {
+      const avatar = document.createElement('span');
+      avatar.className = 'kw-skeleton-avatar';
+      line.appendChild(avatar);
+    }
 
     const bubble = document.createElement('div');
     bubble.className = 'kw-skeleton-bubble';
-    bubble.style.width = `${row.widthPx}px`;
-    wrap.appendChild(bubble);
+    bubble.style.width = `${row.bubbleWidthPx}px`;
+    line.appendChild(bubble);
+    wrap.append(meta, line);
 
     container.appendChild(wrap);
   }
@@ -48,6 +79,7 @@ export function clearLoadingSkeleton(container: HTMLElement): void {
   if (container.getAttribute('aria-busy') !== 'true') return;
   container.textContent = '';
   container.removeAttribute('aria-busy');
+  container.removeAttribute('aria-label');
 }
 
 export function renderMessages(
@@ -95,13 +127,21 @@ function renderBubble(
   row.className = `kw-bubble-row kw-bubble-row--${message.direction}`;
   row.classList.toggle('kw-bubble-row--grouped', grouped);
 
-  if (!grouped) {
-    const time = document.createElement('time');
-    time.className = 'kw-bubble-time';
-    time.dateTime = message.createdAt;
-    time.textContent = formatTime(message.createdAt);
-    row.appendChild(time);
-  }
+  const meta = document.createElement('div');
+  meta.className = 'kw-bubble-meta';
+  const sender = document.createElement('strong');
+  sender.className = 'kw-bubble-sender';
+  sender.textContent =
+    message.direction === 'inbound'
+      ? 'You'
+      : message.senderName || support?.name || 'Support';
+  const time = document.createElement('time');
+  time.className = 'kw-bubble-time';
+  time.dateTime = message.createdAt;
+  time.textContent = formatTime(message.createdAt);
+  meta.append(sender, time);
+  meta.hidden = true;
+  meta.id = `kw-message-details-${message.clientMessageId}`;
 
   const bubble = document.createElement('div');
   bubble.className = 'kw-bubble';
@@ -117,13 +157,10 @@ function renderBubble(
     reply.append(author, body);
     bubble.appendChild(reply);
   }
-  if (message.content) {
-    const content = document.createElement('span');
-    content.textContent = message.content;
-    bubble.appendChild(content);
-  }
   for (const attachment of message.attachments ?? []) {
     if (attachment.kind === 'image') {
+      const wrap = document.createElement('span');
+      wrap.className = 'kw-message-image-wrap';
       const link = document.createElement('a');
       link.href = attachment.url;
       link.target = '_blank';
@@ -134,7 +171,15 @@ function renderBubble(
       image.src = attachment.url;
       image.alt = attachment.name;
       link.appendChild(image);
-      bubble.appendChild(link);
+      const download = document.createElement('a');
+      download.href = attachment.url;
+      download.download = attachment.name;
+      download.className = 'kw-message-image-download';
+      download.setAttribute('aria-label', `Download ${attachment.name}`);
+      download.title = 'Download';
+      download.innerHTML = DOWNLOAD_ICON;
+      wrap.append(link, download);
+      bubble.appendChild(wrap);
     } else {
       const link = document.createElement('a');
       link.href = attachment.url;
@@ -148,6 +193,11 @@ function renderBubble(
       link.append(name, size);
       bubble.appendChild(link);
     }
+  }
+  if (message.content) {
+    const content = document.createElement('span');
+    content.textContent = message.content;
+    bubble.appendChild(content);
   }
   const line = document.createElement('div');
   line.className = 'kw-bubble-line';
@@ -163,7 +213,31 @@ function renderBubble(
     line.appendChild(avatar);
   }
   line.appendChild(bubble);
-  row.appendChild(line);
+  row.append(line, meta);
+
+  const toggleDetails = () => {
+    meta.hidden = !meta.hidden;
+    bubble.setAttribute('aria-expanded', String(!meta.hidden));
+    bubble.setAttribute(
+      'aria-label',
+      `Message. ${meta.hidden ? 'Show' : 'Hide'} sender and time`,
+    );
+  };
+  bubble.tabIndex = 0;
+  bubble.setAttribute('aria-expanded', 'false');
+  bubble.setAttribute('aria-controls', meta.id);
+  bubble.setAttribute('aria-label', 'Message. Show sender and time');
+  bubble.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target instanceof Element && target.closest('a, button')) return;
+    toggleDetails();
+  });
+  bubble.addEventListener('keydown', (event) => {
+    if (event.target !== bubble || (event.key !== 'Enter' && event.key !== ' '))
+      return;
+    event.preventDefault();
+    toggleDetails();
+  });
 
   if (message.id) {
     const actions = document.createElement('div');
@@ -249,7 +323,7 @@ function renderBubble(
     status.setAttribute('aria-label', STATUS_LABELS[message.status] ?? '');
     status.innerHTML =
       message.status === 'sent' ? SINGLE_CHECK_ICON : DOUBLE_CHECK_ICON;
-    row.appendChild(status);
+    meta.appendChild(status);
   }
 
   return row;

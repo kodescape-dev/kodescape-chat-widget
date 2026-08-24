@@ -131,6 +131,70 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('connects visitor presence as soon as the site loads', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+
+    await flush();
+    await flush();
+
+    const connectHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'connect',
+    )?.[1] as (() => void) | undefined;
+    expect(connectHandler).toBeTypeOf('function');
+
+    widget.destroy();
+  });
+
+  it('shows and clears a numeric unread-message counter on the launcher', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+    await flush();
+
+    const messageNewHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'message:new',
+    )?.[1] as ((event: unknown) => void) | undefined;
+    expect(messageNewHandler).toBeTypeOf('function');
+
+    const createEvent = (id: string) => ({
+      conversationId: 'conv-1',
+      message: {
+        id,
+        clientMessageId: `admin-${id}`,
+        direction: 'outbound',
+        senderType: 'human',
+        senderName: 'Agent',
+        content: 'Hello',
+        createdAt: new Date().toISOString(),
+        status: 'sent',
+      },
+    });
+    messageNewHandler?.(createEvent('message-1'));
+    messageNewHandler?.(createEvent('message-2'));
+
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const launcher = shadow.querySelector('.kw-launcher') as HTMLButtonElement;
+    const badge = shadow.querySelector('.kw-launcher-badge') as HTMLElement;
+    expect(badge.hidden).toBe(false);
+    expect(badge.textContent).toBe('2');
+    expect(launcher.getAttribute('aria-label')).toContain('2 unread messages');
+
+    launcher.click();
+    await flush();
+    expect(badge.hidden).toBe(true);
+
+    widget.destroy();
+  });
+
   it('applies the active device profile to the launcher', async () => {
     vi.stubGlobal(
       'matchMedia',
@@ -332,10 +396,8 @@ describe('mount()', () => {
       shadow.querySelector('.kw-composer-row')?.children ?? [],
     );
     expect(composerControls.map((control) => control.className)).toEqual([
-      'kw-composer-action',
-      'kw-composer-action',
-      'kw-composer-input-wrap',
-      'kw-composer-send',
+      'kw-composer-input-row',
+      'kw-composer-toolbar',
     ]);
 
     const emojiButton = shadow.querySelector(

@@ -91,6 +91,7 @@ export type MessageStatus = 'sent' | 'delivered' | 'read';
 
 export interface ServerMessage {
   id: string;
+  conversationId?: string;
   clientMessageId: string;
   direction: MessageDirection;
   senderType: MessageSenderType;
@@ -139,6 +140,13 @@ export interface MessageStatusEvent {
   conversationId: string;
   messageId: string;
   status: 'delivered';
+}
+
+export interface MessageFailedEvent {
+  conversationId: string;
+  messageId: string;
+  clientMessageId: string;
+  reason?: string;
 }
 
 export interface MessageReadEvent {

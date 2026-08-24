@@ -48,6 +48,7 @@ const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'https://api.kodescape.com';
 const HISTORY_PAGE_LIMIT = 50;
 const TYPING_STOP_DELAY_MS = 2500;
+const TYPING_HEARTBEAT_INTERVAL_MS = 1000;
 const REMOTE_TYPING_TIMEOUT_MS = 6000;
 const CONTEXT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_LEAD_SETTINGS: Pick<
@@ -86,7 +87,7 @@ const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
     'Billing and subscription help',
     'Report an issue or bug',
   ],
-  composerPlaceholder: 'Write your message…',
+  composerPlaceholder: 'Enter your message...',
   launcherStyle: 'label_icon',
   launcherLabel: 'Chat with us',
   launcherIcon: 'chat',
@@ -219,7 +220,10 @@ export function mount(options: MountOptions): MountedWidget {
   let hasSentFirstMessage = false;
   let contactPromptHandled = false;
   let typingActive = false;
+  let socketStarted = false;
+  let unreadMessageCount = 0;
   let typingStopTimer: ReturnType<typeof setTimeout> | null = null;
+  let typingHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
   const remoteTypers = new Map<
     string,
     { id: string; name: string; avatarUrl?: string | null }
@@ -269,9 +273,8 @@ export function mount(options: MountOptions): MountedWidget {
       },
     );
     chatWindow.setConnectionStatus(store.isConnected());
-    const hasUnseen = hasUnseenAdminMessage();
-    launcher.setUnread(isOpen === false && hasUnseen);
-    maybeMarkMessagesRead(hasUnseen);
+    launcher.setUnread(isOpen ? 0 : unreadMessageCount);
+    maybeMarkMessagesRead(unreadMessageCount > 0);
   });
 
   function hasUnseenAdminMessage(): boolean {
@@ -305,6 +308,7 @@ export function mount(options: MountOptions): MountedWidget {
       .getWidgetSettings(options.siteId)
       .then(applyBranding)
       .catch(() => {});
+    connectVisitorSocket();
   }
 
   async function setOpen(next: boolean): Promise<void> {
@@ -319,7 +323,9 @@ export function mount(options: MountOptions): MountedWidget {
       if (!hasEnteredChat) chatWindow.showHome();
       return;
     }
-    launcher.setUnread(false);
+    const hadUnreadMessages = unreadMessageCount > 0;
+    unreadMessageCount = 0;
+    launcher.setUnread(0);
     if (!hasEnteredChat) {
       await ensureResumeContactStatusResolved();
       if (canAutoResume()) {
@@ -331,11 +337,18 @@ export function mount(options: MountOptions): MountedWidget {
     } else {
       chatWindow.showHome();
     }
-    maybeMarkMessagesRead(hasUnseenAdminMessage());
+    maybeMarkMessagesRead(hadUnreadMessages || hasUnseenAdminMessage());
   }
 
   function handleVisibilityChange(): void {
     if (options.preview) return;
+    if (document.visibilityState === 'visible' && isOpen) {
+      const hadUnreadMessages = unreadMessageCount > 0;
+      unreadMessageCount = 0;
+      launcher.setUnread(0);
+      maybeMarkMessagesRead(hadUnreadMessages || hasUnseenAdminMessage());
+      return;
+    }
     maybeMarkMessagesRead(hasUnseenAdminMessage());
   }
 
@@ -560,9 +573,13 @@ export function mount(options: MountOptions): MountedWidget {
       clearTimeout(typingStopTimer);
       typingStopTimer = null;
     }
+    if (typingHeartbeatTimer) {
+      clearInterval(typingHeartbeatTimer);
+      typingHeartbeatTimer = null;
+    }
     if (!typingActive) return;
     typingActive = false;
-    if (currentConversationId) socket.emitTypingStop(currentConversationId);
+    socket.emitTypingStop(currentConversationId ?? undefined);
   }
 
   function renderRemoteTypers(): void {
@@ -606,37 +623,53 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   function handleComposerInput(value: string): void {
-    if (!currentConversationId) return;
     if (!value) {
       stopTyping();
       return;
     }
     if (!typingActive) {
       typingActive = true;
-      socket.emitTypingStart(currentConversationId);
+      socket.emitTypingStart(currentConversationId ?? undefined);
+      typingHeartbeatTimer = setInterval(() => {
+        socket.emitTypingStart(currentConversationId ?? undefined);
+      }, TYPING_HEARTBEAT_INTERVAL_MS);
     }
     if (typingStopTimer) clearTimeout(typingStopTimer);
     typingStopTimer = setTimeout(stopTyping, TYPING_STOP_DELAY_MS);
   }
 
   async function loadInitialHistoryAndConnect(): Promise<void> {
+    connectVisitorSocket();
     chatWindow.setLoading(true);
     try {
       const accessToken = await session.ensureAccessToken();
       const page = await api.getMessages(accessToken, {
         limit: HISTORY_PAGE_LIMIT,
       });
+      currentConversationId =
+        page.items.find((message) => message.conversationId)?.conversationId ??
+        currentConversationId;
       store.mergeServerMessages(page.items);
     } catch {}
     chatWindow.setLoading(false);
 
     void postContextIfChanged();
     startContextWatch();
+  }
 
+  function connectVisitorSocket(): void {
+    if (socketStarted) return;
+    socketStarted = true;
     socket
       .connect({
         onMessageNew: (event) => {
           currentConversationId = event.conversationId;
+          if (
+            event.message.direction === 'outbound' &&
+            (!isOpen || document.visibilityState !== 'visible')
+          ) {
+            unreadMessageCount += 1;
+          }
           store.receiveRealtime(event.message);
           if (
             event.message.direction === 'outbound' &&
@@ -644,6 +677,9 @@ export function mount(options: MountOptions): MountedWidget {
           ) {
             playIncomingSound();
           }
+        },
+        onMessageFailed: (event) => {
+          store.markFailed(event.clientMessageId);
         },
         onConnectionChange: (connected) => {
           store.setConnected(connected);
@@ -658,6 +694,7 @@ export function mount(options: MountOptions): MountedWidget {
         onTypingStop: handleRemoteTypingStop,
       })
       .catch(() => {
+        socketStarted = false;
         store.setConnected(false);
       });
   }
@@ -805,6 +842,8 @@ export function mount(options: MountOptions): MountedWidget {
         attachments.map((attachment) => attachment.id),
         replyToMessageId,
       );
+      currentConversationId =
+        serverMessage.conversationId ?? currentConversationId;
       store.confirmSent(clientMessageId, serverMessage);
       if (!hasSentFirstMessage) {
         hasSentFirstMessage = true;
@@ -930,6 +969,7 @@ export function mount(options: MountOptions): MountedWidget {
       window.removeEventListener('message', handlePreviewMessage);
       if (contextPollTimer) clearInterval(contextPollTimer);
       if (typingStopTimer) clearTimeout(typingStopTimer);
+      if (typingHeartbeatTimer) clearInterval(typingHeartbeatTimer);
       remoteTypingTimers.forEach(clearTimeout);
       remoteTypingTimers.clear();
       socket.disconnect();
