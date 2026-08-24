@@ -47,8 +47,7 @@ export type PreviewConfigMessage = {
 const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'https://api.kodescape.com';
 const HISTORY_PAGE_LIMIT = 50;
-const TYPING_STOP_DELAY_MS = 2500;
-const TYPING_HEARTBEAT_INTERVAL_MS = 1000;
+const DRAFT_UPDATE_DELAY_MS = 250;
 const REMOTE_TYPING_TIMEOUT_MS = 6000;
 const CONTEXT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_LEAD_SETTINGS: Pick<
@@ -219,11 +218,11 @@ export function mount(options: MountOptions): MountedWidget {
   let currentConversationId: string | null = null;
   let hasSentFirstMessage = false;
   let contactPromptHandled = false;
-  let typingActive = false;
   let socketStarted = false;
   let unreadMessageCount = 0;
-  let typingStopTimer: ReturnType<typeof setTimeout> | null = null;
-  let typingHeartbeatTimer: ReturnType<typeof setInterval> | null = null;
+  let draftUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+  let draftActive = false;
+  let lastDraftUpdateAt = 0;
   const remoteTypers = new Map<
     string,
     { id: string; name: string; avatarUrl?: string | null }
@@ -568,18 +567,15 @@ export function mount(options: MountOptions): MountedWidget {
     }, CONTEXT_POLL_INTERVAL_MS);
   }
 
-  function stopTyping(): void {
-    if (typingStopTimer) {
-      clearTimeout(typingStopTimer);
-      typingStopTimer = null;
+  function clearVisitorDraft(): void {
+    if (draftUpdateTimer) {
+      clearTimeout(draftUpdateTimer);
+      draftUpdateTimer = null;
     }
-    if (typingHeartbeatTimer) {
-      clearInterval(typingHeartbeatTimer);
-      typingHeartbeatTimer = null;
-    }
-    if (!typingActive) return;
-    typingActive = false;
-    socket.emitTypingStop(currentConversationId ?? undefined);
+    if (!draftActive) return;
+    draftActive = false;
+    lastDraftUpdateAt = 0;
+    socket.emitDraftClear();
   }
 
   function renderRemoteTypers(): void {
@@ -623,19 +619,25 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   function handleComposerInput(value: string): void {
+    if (draftUpdateTimer) clearTimeout(draftUpdateTimer);
     if (!value) {
-      stopTyping();
+      clearVisitorDraft();
       return;
     }
-    if (!typingActive) {
-      typingActive = true;
-      socket.emitTypingStart(currentConversationId ?? undefined);
-      typingHeartbeatTimer = setInterval(() => {
-        socket.emitTypingStart(currentConversationId ?? undefined);
-      }, TYPING_HEARTBEAT_INTERVAL_MS);
+
+    const emitDraft = () => {
+      draftUpdateTimer = null;
+      draftActive = true;
+      lastDraftUpdateAt = Date.now();
+      socket.emitDraftUpdate(value);
+    };
+    const remainingDelay =
+      DRAFT_UPDATE_DELAY_MS - (Date.now() - lastDraftUpdateAt);
+    if (!draftActive || remainingDelay <= 0) {
+      emitDraft();
+      return;
     }
-    if (typingStopTimer) clearTimeout(typingStopTimer);
-    typingStopTimer = setTimeout(stopTyping, TYPING_STOP_DELAY_MS);
+    draftUpdateTimer = setTimeout(emitDraft, remainingDelay);
   }
 
   async function loadInitialHistoryAndConnect(): Promise<void> {
@@ -735,7 +737,7 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   function handleSend(submission: ComposerSubmission): void {
-    stopTyping();
+    clearVisitorDraft();
     const clientMessageId = crypto.randomUUID();
     const replyTarget = submission.replyToMessageId
       ? store
@@ -968,8 +970,7 @@ export function mount(options: MountOptions): MountedWidget {
       window.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('message', handlePreviewMessage);
       if (contextPollTimer) clearInterval(contextPollTimer);
-      if (typingStopTimer) clearTimeout(typingStopTimer);
-      if (typingHeartbeatTimer) clearInterval(typingHeartbeatTimer);
+      clearVisitorDraft();
       remoteTypingTimers.forEach(clearTimeout);
       remoteTypingTimers.clear();
       socket.disconnect();

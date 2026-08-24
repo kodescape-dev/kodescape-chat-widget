@@ -138,9 +138,9 @@ Mirrors `VisitorSessionService` on the API side exactly:
 - Internal notes belong exclusively to the Admin/API Inbox. The widget must never render, backfill, receive over sockets, react to, or expose messages whose API kind is `internal_note`.
 - The API enforces this boundary by filtering widget history/backfill and emitting internal-note realtime events only to organization Inbox rooms. No widget UI or public message contract is extended for notes or teammate mentions.
 
-### Agent typing indicator
+### Realtime composer presence
 
-- The widget emits visitor typing start/stop from composer input without changing composer styling.
+- Once an open conversation exists, visitor composer input emits the first full-text `visitor:draft:update` immediately, then throttles continuing updates to 250ms; empty input, send, and widget destruction emit `visitor:draft:clear`. Blur does not clear a draft, so switching to the Admin window preserves the preview. The widget does not assert a conversation or organization ID for this channel; the authenticated API socket resolves the visitor's open conversation. Drafts are ephemeral and never enter message history or storage.
 - Remote agent typing is tracked per actor ID, supports multiple simultaneous agents, and renders up to three small stacked agent avatars followed by an animated three-dot pill above the composer.
 - Each actor has an independent six-second stale timeout; explicit stop, socket disconnect, and widget destruction clear typing state and timers.
 

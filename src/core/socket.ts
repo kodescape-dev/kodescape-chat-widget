@@ -79,6 +79,14 @@ export class ChatSocket {
     this.socket?.emit('typing:stop', { conversationId });
   }
 
+  emitDraftUpdate(text: string): void {
+    this.socket?.emit('visitor:draft:update', { text });
+  }
+
+  emitDraftClear(): void {
+    this.socket?.emit('visitor:draft:clear');
+  }
+
   disconnect(): void {
     this.socket?.disconnect();
     this.socket = null;

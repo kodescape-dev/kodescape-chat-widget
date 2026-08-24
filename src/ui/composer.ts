@@ -258,7 +258,6 @@ export function createComposer(handlers: {
     resizeTextarea();
     handlers.onInput?.(textarea.value);
   });
-  textarea.addEventListener('blur', () => handlers.onInput?.(''));
   textarea.addEventListener('paste', (event) => {
     const images = Array.from(event.clipboardData?.files ?? []).filter((file) =>
       file.type.startsWith('image/'),

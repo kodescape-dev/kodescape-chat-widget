@@ -1179,7 +1179,7 @@ describe('mount()', () => {
     widget.destroy();
   });
 
-  it('debounces composer typing so rapid keystrokes emit only one socket typing:start, and stops typing immediately on send', async () => {
+  it('emits the first visitor draft immediately, throttles updates, and clears it on send', async () => {
     vi.stubGlobal(
       'fetch',
       vi.fn((input: string, init?: RequestInit) => {
@@ -1273,22 +1273,32 @@ describe('mount()', () => {
       textarea.dispatchEvent(new Event('input', { bubbles: true }));
     }
 
-    const typingStartCalls = fakeSocket.emit.mock.calls.filter(
-      ([event]) => event === 'typing:start',
+    await new Promise((resolve) => setTimeout(resolve, 300));
+
+    const draftUpdateCalls = fakeSocket.emit.mock.calls.filter(
+      ([event]) => event === 'visitor:draft:update',
     );
-    expect(typingStartCalls).toHaveLength(1);
-    expect(typingStartCalls[0][1]).toEqual({ conversationId: 'conv-1' });
+    expect(draftUpdateCalls).toHaveLength(2);
+    expect(draftUpdateCalls[0][1]).toEqual({ text: 'h' });
+    expect(draftUpdateCalls[1][1]).toEqual({ text: 'hello' });
+
+    textarea.blur();
+    expect(
+      fakeSocket.emit.mock.calls.filter(
+        ([event]) => event === 'visitor:draft:clear',
+      ),
+    ).toHaveLength(0);
 
     (
       host.shadowRoot!.querySelector('.kw-composer-send') as HTMLButtonElement
     ).click();
     await flush();
 
-    const typingStopCalls = fakeSocket.emit.mock.calls.filter(
-      ([event]) => event === 'typing:stop',
+    const draftClearCalls = fakeSocket.emit.mock.calls.filter(
+      ([event]) => event === 'visitor:draft:clear',
     );
-    expect(typingStopCalls.length).toBeGreaterThanOrEqual(1);
-    expect(typingStopCalls[0][1]).toEqual({ conversationId: 'conv-1' });
+    expect(draftClearCalls.length).toBeGreaterThanOrEqual(1);
+    expect(draftClearCalls[0]).toEqual(['visitor:draft:clear']);
 
     widget.destroy();
   });
