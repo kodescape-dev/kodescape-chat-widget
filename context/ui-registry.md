@@ -154,6 +154,11 @@ inside the new message. Touch devices keep actions visible because hover is not
 available. Preview mode uses these exact controls and updates its local store;
 production posts through REST and replaces reactions from `message:reactions`.
 
+The message list scrollbar stays transparent until the list is hovered. Its
+WebKit track is `5px` wide; the thumb uses `var(--kw-ink-400)` at 24% opacity,
+increasing only to 34% when the thumb itself is hovered. Firefox retains its
+native `thin` width with the same lighter 24% thumb color.
+
 ## Composer
 
 File: `src/ui/composer.ts`, `src/ui/styles.css`
@@ -233,6 +238,10 @@ Files: `src/ui/composer.ts`, `src/ui/styles.css`
 | Hover state      | icon/send actions use `var(--kw-surface-sunk)` only on interaction                                                 |
 | Shadow           | none                                                                                                               |
 | Accent usage     | send icon uses `var(--kw-primary-color)` without a filled circle                                                   |
+
+The send control is a compact `34px × 34px` square with an `18px` icon. Keep
+it bottom-aligned with the input row; do not restore the older full-input-height
+button.
 
 **Pattern notes:** The previous rounded pill input is retired. Multiline input grows without exposing a scrollbar. Attachment and emoji controls sit in the lower toolbar beside “Powered by Kodescape.” Clearing a send clears text and staged attachments immediately. The Admin live preview renders this same production implementation rather than maintaining a visual copy.
 

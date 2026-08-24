@@ -44,9 +44,12 @@ only" contract above.
 3. Only the launcher button renders immediately. The panel itself is a
    three-view shell (`src/ui/window.ts`: home / lead-capture / chat,
    toggled via `hidden` on nodes that all exist in the DOM up front, not
-   created per switch) — see "UI views" below. Conversation history and
-   the socket connection are **not** fetched until the visitor actually
-   enters the chat view, which only happens by submitting the
+   created per switch) — see "UI views" below. The authenticated socket
+   connects in the background so presence and launcher unread updates remain
+   realtime. After session/socket startup, the latest conversation page is
+   scheduled as non-critical background work; it does not compete with the
+   launcher bootstrap. Entering chat before that preload starts reuses the same
+   one-time loader rather than issuing a second request. Chat entry happens by submitting the
    lead-capture form or clicking "Continue previous conversation"; a new
    visitor who opens the panel and reads the home screen without acting
    costs nothing, mirroring the backend's own "nothing written to Mongo
@@ -98,12 +101,34 @@ queryable by tests regardless of which view is active):
 `window.ts` moves Home → Lead-capture → Chat internally on click/submit
 for immediate UI feedback, and only calls out to `mount.ts`'s handlers
 (`onContinue`, `onLeadSubmit`) for the side effects that need the network
-(`enterChat()` → `loadInitialHistoryAndConnect()`). Once
+(`enterChat()` → `loadInitialHistory()`). Once
 `enterChat()` has run once for a given `mount()` instance, the panel
 never shows Home again for the rest of that page load, even if closed
 and reopened.
 
-While `loadInitialHistoryAndConnect()` is in flight,
+One second after session/socket initialization, the widget preloads the latest
+20 messages into `ChatStore`. If the visitor enters chat first, that same load
+starts immediately; an in-flight or completed preload is reused. Scrolling
+within 80px of the top requests the next cursor page in batches of 20 and
+restores the visual scroll offset after prepending. Loaded history stays in
+`ChatStore`, so closing and reopening the panel during the same mount does not
+refetch it.
+
+On the first transition into Chat, the message list is positioned at its
+maximum scroll height so the newest message is visible. Initial history images
+temporarily retain that bottom anchor through their `load`/`error` event, which
+prevents late attachment sizing from leaving the visitor above the latest
+message. This initial positioning runs once and does not replace the preserved
+offset behavior used when older cursor pages are prepended.
+
+Context updates are conversation-gated. If initial history identifies an
+existing conversation, its current page context posts immediately. Empty
+history does not post context, and the context watcher remains a no-op until a
+successful first message returns a conversation ID; that success posts context
+once. The first-send path does not reset the context dedupe key, so an existing
+conversation does not receive a duplicate unchanged context update.
+
+While `loadInitialHistory()` is in flight,
 `src/ui/message-list.ts`'s `renderLoadingSkeleton()` fills the list with
 four pulsing placeholder rows (`clearLoadingSkeleton()` — or a real
 `renderMessages()` call from the store, whichever happens first — clears
@@ -159,14 +184,18 @@ claims instead.
 ## Socket (`src/core/socket.ts`)
 
 Connects to the `/chat` Socket.IO namespace with
-`auth: { accessToken }`. Receive-only, matching `chat.gateway.ts` on the
-API side — this client has no `emit()` for sending; sends are always
-REST. On every reconnect (not the first connect), it calls
+`auth: { accessToken }`. Sends `message:send` via `sendMessage()` — a
+socket.io ack callback + 10s timeout, resolving/rejecting with the same
+contract `ChatApi.sendMessage()` (REST, kept as an unused fallback) used to.
+Otherwise stays receive-only, matching `chat.gateway.ts` on the API side. On
+every reconnect (not the first connect), it calls
 `onReconnectBackfillNeeded()` so `mount.ts` can run a REST
 `GET .../messages?after={lastKnownId}` backfill for anything missed while
 offline. Before each reconnect attempt it also re-fetches a fresh
 `accessToken`, since the 15-minute token can expire while the socket was
-disconnected.
+disconnected — though `message:send` itself doesn't need a fresh token,
+since `ChatGateway` only checks the token once at connect time, not per
+event.
 
 ## Store (`src/core/store.ts`)
 
@@ -174,8 +203,9 @@ Plain TypeScript state, no framework. Only the visitor's own outgoing
 messages need optimistic local state (`sending` → `sent`/`failed`) —
 `chat.gateway.ts` never echoes a visitor's own inbound message back over
 the socket (only `direction: outbound`, i.e. admin replies, get emitted to
-`buildVisitorRoom`), so the `POST /public/chat/messages` REST response
-itself is the only confirmation a sent message gets. Everything funnels
+`buildVisitorRoom`), so the `message:send` ack (or, on the REST fallback
+path, the `POST /public/chat/messages` response) is the only confirmation a
+sent message gets. Everything funnels
 through `mergeServerMessages()`: deduped first by server `id`, then by
 `clientMessageId` for anything still locally pending, so a reconnect
 backfill page can never double-add a message the UI already shows.

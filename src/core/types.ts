@@ -104,6 +104,10 @@ export interface ServerMessage {
   status: MessageStatus;
 }
 
+export type MessageSendAck =
+  | { ok: true; message: ServerMessage }
+  | { ok: false; code: string; message: string };
+
 export interface MessageReply {
   messageId: string;
   senderType: MessageSenderType;

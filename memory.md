@@ -1065,3 +1065,79 @@ Last updated: 2026-08-24 18:36 +06
 ## Open questions
 
 - The previously observed source of concurrent working-tree edits and automatic commits remains unidentified.
+
+---
+
+# Memory — Website Chat Option A: message send moved to /chat socket
+
+Last updated: 2026-08-24 (later session)
+
+## What was built
+
+- `src/core/socket.ts`'s `ChatSocket` gained `sendMessage()` — emits
+  `message:send` with a socket.io ack callback + 10s timeout, resolving/
+  rejecting with the same contract `ChatApi.sendMessage()` (REST) used to.
+  `ChatSocket` was receive-only before this session; it now also sends.
+- `src/mount.ts`'s `sendPending()` now calls `socket.sendMessage(...)`
+  instead of `api.sendMessage(accessToken, ...)` — the `ensureAccessToken()`
+  call before it was dropped too, since the socket is already authenticated
+  at connect time and the backend gateway doesn't re-check token freshness
+  per event (same as the existing typing/draft handlers already relied on).
+  Everything downstream — `store.confirmSent`/`store.markFailed`
+  reconciliation, attachment upload (still REST, never sent over the
+  socket), replies, the first-message context-post/contact-prompt side
+  effects — unchanged.
+- `types.ts` gained `MessageSendAck`.
+- `context/architecture.md`'s Socket and Store sections corrected — they
+  said the socket was receive-only with no `emit()` for sending, and that
+  the REST response was the only send confirmation. Both were true before
+  this session and are not anymore.
+- `tests/smoke/mount.test.ts`: the shared `fakeSocket.emit` mock (used by
+  every test in the file via the top-level `vi.mock("socket.io-client", ...)`)
+  now auto-acks any `message:send` call with a synthesized success response
+  built from the actual payload, so every test that triggers a composer
+  send keeps working without per-test setup. The one test with a hard
+  assertion on the old REST call
+  (`submits identity and the first message on pre-chat form submission`)
+  now asserts the REST `POST .../messages` call is `undefined` and asserts
+  `fakeSocket.emit` was called with `message:send` and the right content —
+  the dead REST-mock branch that test used to set up was removed too.
+
+## Decisions made
+
+- `ChatApi.sendMessage()` (REST) is untouched and now simply unused by
+  `mount.ts` — left in place as a fallback, not deleted. Same for the
+  backend REST endpoint it calls. Explicit instruction, not an oversight.
+- No offline-queue or auto-retry behavior added — a failed `message:send`
+  still surfaces as the existing `'failed'` store status with the existing
+  manual `retry()` affordance, same as a REST failure always did.
+
+## Problems solved
+
+- The recurring unexplained auto-commit pattern (see this file's earlier
+  entries) fired again this session — `4d27f54` "`Add live visitor draft
+preview to admin inbox`" appeared mid-session, folding 5 files of
+  pre-existing uncommitted WIP (`context/architecture.md`, `src/core/socket.ts`,
+  `src/mount.ts`, `src/ui/composer.ts`, `tests/smoke/mount.test.ts`) into
+  its own commit. Checked immediately via `git log`/`git status`, confirmed
+  nothing lost — this session's own edits landed cleanly on top of that
+  commit in the working tree afterward.
+
+## Current state
+
+- `tsc`/`eslint` clean, 51/51 tests, `vite build` clean.
+- Nothing committed this session — working tree has `context/architecture.md`,
+  `src/core/socket.ts`, `src/core/types.ts`, `src/mount.ts`,
+  `tests/smoke/mount.test.ts`.
+
+## Next session starts with
+
+- Nothing outstanding for this change. See `kodescape-cms-api`'s `memory.md`
+  (same date) for the full cross-repo picture, including the ordering-bug
+  fix in the backend's `MessagesService.send()` this was built on top of.
+
+## Open questions
+
+- Same standing one as every prior entry in this file: what creates the
+  auto-commits, and (from an earlier entry) what was live-editing this
+  working tree outside any session that time. Still unidentified.

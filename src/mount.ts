@@ -46,7 +46,9 @@ export type PreviewConfigMessage = {
 
 const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'https://api.kodescape.com';
-const HISTORY_PAGE_LIMIT = 50;
+const HISTORY_PAGE_LIMIT = 20;
+const HISTORY_TOP_THRESHOLD_PX = 80;
+const HISTORY_PRELOAD_DELAY_MS = 1000;
 const DRAFT_UPDATE_DELAY_MS = 250;
 const REMOTE_TYPING_TIMEOUT_MS = 6000;
 const CONTEXT_POLL_INTERVAL_MS = 2000;
@@ -229,6 +231,12 @@ export function mount(options: MountOptions): MountedWidget {
   >();
   const remoteTypingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let readMarkInFlight = false;
+  let historyLoaded = false;
+  let historyNextCursor: string | null = null;
+  let historyLoadPromise: Promise<void> | null = null;
+  let olderHistoryLoading = false;
+  let historyPreloadTimer: ReturnType<typeof setTimeout> | null = null;
+  let hasPositionedInitialHistory = false;
 
   const initialUrl = location.href;
   const referrer = document.referrer;
@@ -254,6 +262,7 @@ export function mount(options: MountOptions): MountedWidget {
   });
   chatWindow.setResumeAvailable(canAutoResume());
   root.append(chatWindow.el, launcher.el);
+  chatWindow.listEl.addEventListener('scroll', handleMessageListScroll);
 
   (options.target ?? document.body).appendChild(host);
 
@@ -332,6 +341,8 @@ export function mount(options: MountOptions): MountedWidget {
       }
     }
     if (hasEnteredChat) {
+      await loadInitialHistory();
+      positionInitialHistoryAtBottom();
       chatWindow.focusComposer();
     } else {
       chatWindow.showHome();
@@ -384,7 +395,8 @@ export function mount(options: MountOptions): MountedWidget {
       chatWindow.setConnectionStatus(true);
       return;
     }
-    await loadInitialHistoryAndConnect();
+    await loadInitialHistory();
+    positionInitialHistoryAtBottom();
   }
 
   function contactCollectionMode(): WidgetSettings['contactCollectionMode'] {
@@ -550,6 +562,7 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   async function postContextIfChanged(): Promise<void> {
+    if (!currentConversationId) return;
     const payload = currentContextPayload();
     const key = contextDedupeKey(payload);
     if (key === lastPostedContextKey) return;
@@ -640,23 +653,83 @@ export function mount(options: MountOptions): MountedWidget {
     draftUpdateTimer = setTimeout(emitDraft, remainingDelay);
   }
 
-  async function loadInitialHistoryAndConnect(): Promise<void> {
-    connectVisitorSocket();
-    chatWindow.setLoading(true);
+  function loadInitialHistory(): Promise<void> {
+    if (historyLoaded) return Promise.resolve();
+    if (historyLoadPromise) return historyLoadPromise;
+
+    historyLoadPromise = (async () => {
+      chatWindow.setLoading(store.getMessages().length === 0);
+      try {
+        const accessToken = await session.ensureAccessToken();
+        const page = await api.getMessages(accessToken, {
+          limit: HISTORY_PAGE_LIMIT,
+        });
+        currentConversationId =
+          page.items.find((message) => message.conversationId)
+            ?.conversationId ?? currentConversationId;
+        historyNextCursor = page.nextCursor;
+        store.mergeServerMessages(page.items);
+        historyLoaded = true;
+      } catch {}
+      chatWindow.setLoading(false);
+
+      void postContextIfChanged();
+      startContextWatch();
+    })().finally(() => {
+      historyLoadPromise = null;
+    });
+
+    return historyLoadPromise;
+  }
+
+  function scheduleHistoryPreload(): void {
+    if (historyLoaded || historyLoadPromise || historyPreloadTimer) return;
+    historyPreloadTimer = setTimeout(() => {
+      historyPreloadTimer = null;
+      void loadInitialHistory();
+    }, HISTORY_PRELOAD_DELAY_MS);
+  }
+
+  function positionInitialHistoryAtBottom(): void {
+    if (hasPositionedInitialHistory) return;
+    hasPositionedInitialHistory = true;
+    const scrollToBottom = () => {
+      chatWindow.listEl.scrollTop = chatWindow.listEl.scrollHeight;
+    };
+
+    scrollToBottom();
+    queueMicrotask(scrollToBottom);
+    chatWindow.listEl.querySelectorAll('img').forEach((image) => {
+      if (image.complete) return;
+      image.addEventListener('load', scrollToBottom, { once: true });
+      image.addEventListener('error', scrollToBottom, { once: true });
+    });
+  }
+
+  function handleMessageListScroll(): void {
+    if (chatWindow.listEl.scrollTop > HISTORY_TOP_THRESHOLD_PX) return;
+    if (!historyLoaded || !historyNextCursor || olderHistoryLoading) return;
+    void loadOlderHistory();
+  }
+
+  async function loadOlderHistory(): Promise<void> {
+    if (!historyNextCursor || olderHistoryLoading) return;
+    olderHistoryLoading = true;
+    const cursor = historyNextCursor;
+    const previousHeight = chatWindow.listEl.scrollHeight;
+    const previousTop = chatWindow.listEl.scrollTop;
     try {
       const accessToken = await session.ensureAccessToken();
       const page = await api.getMessages(accessToken, {
+        cursor,
         limit: HISTORY_PAGE_LIMIT,
       });
-      currentConversationId =
-        page.items.find((message) => message.conversationId)?.conversationId ??
-        currentConversationId;
+      historyNextCursor = page.nextCursor;
       store.mergeServerMessages(page.items);
+      chatWindow.listEl.scrollTop =
+        previousTop + (chatWindow.listEl.scrollHeight - previousHeight);
     } catch {}
-    chatWindow.setLoading(false);
-
-    void postContextIfChanged();
-    startContextWatch();
+    olderHistoryLoading = false;
   }
 
   function connectVisitorSocket(): void {
@@ -695,6 +768,7 @@ export function mount(options: MountOptions): MountedWidget {
         onTypingStart: handleRemoteTypingStart,
         onTypingStop: handleRemoteTypingStop,
       })
+      .then(scheduleHistoryPreload)
       .catch(() => {
         socketStarted = false;
         store.setConnected(false);
@@ -836,9 +910,7 @@ export function mount(options: MountOptions): MountedWidget {
     replyToMessageId?: string,
   ): Promise<void> {
     try {
-      const accessToken = await session.ensureAccessToken();
-      const serverMessage = await api.sendMessage(
-        accessToken,
+      const serverMessage = await socket.sendMessage(
         clientMessageId,
         content,
         attachments.map((attachment) => attachment.id),
@@ -849,7 +921,6 @@ export function mount(options: MountOptions): MountedWidget {
       store.confirmSent(clientMessageId, serverMessage);
       if (!hasSentFirstMessage) {
         hasSentFirstMessage = true;
-        lastPostedContextKey = null;
         void postContextIfChanged();
         maybeShowContactPrompt();
       }
@@ -969,6 +1040,8 @@ export function mount(options: MountOptions): MountedWidget {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', handleViewportChange);
       window.removeEventListener('message', handlePreviewMessage);
+      chatWindow.listEl.removeEventListener('scroll', handleMessageListScroll);
+      if (historyPreloadTimer) clearTimeout(historyPreloadTimer);
       if (contextPollTimer) clearInterval(contextPollTimer);
       clearVisitorDraft();
       remoteTypingTimers.forEach(clearTimeout);

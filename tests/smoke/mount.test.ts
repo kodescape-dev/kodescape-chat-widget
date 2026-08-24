@@ -1,11 +1,40 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 
+type MessageSendPayload = {
+  clientMessageId: string;
+  content: string;
+  attachmentIds?: string[];
+  replyToMessageId?: string;
+};
+
 const fakeSocket = {
   on: vi.fn(),
   off: vi.fn(),
   disconnect: vi.fn(),
   auth: {},
-  emit: vi.fn(),
+  emit: vi.fn(
+    (event: string, payload?: unknown, ack?: (response: unknown) => void) => {
+      if (event !== 'message:send' || !ack) return;
+      const data = payload as MessageSendPayload;
+      ack({
+        ok: true,
+        message: {
+          id: `socket-${data.clientMessageId}`,
+          conversationId: 'conversation-1',
+          clientMessageId: data.clientMessageId,
+          direction: 'inbound',
+          senderType: 'visitor',
+          senderName: null,
+          content: data.content,
+          attachments: [],
+          replyTo: null,
+          reactions: [],
+          status: 'sent',
+          createdAt: new Date().toISOString(),
+        },
+      });
+    },
+  ),
   io: { on: vi.fn() },
 };
 
@@ -108,6 +137,7 @@ describe('mount()', () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     container.remove();
     vi.unstubAllGlobals();
     vi.clearAllMocks();
@@ -146,6 +176,177 @@ describe('mount()', () => {
       ([event]) => event === 'connect',
     )?.[1] as (() => void) | undefined;
     expect(connectHandler).toBeTypeOf('function');
+
+    widget.destroy();
+  });
+
+  it('preloads 20 messages after startup, paginates near the top, and does not refetch on open', async () => {
+    vi.useFakeTimers();
+    const historyUrls: string[] = [];
+    const contextUrls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(
+            widgetSettings({ askName: false, askEmail: false }),
+          );
+        }
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'resume-1',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        if (input.includes('/messages')) {
+          historyUrls.push(input);
+          return jsonResponse({
+            items: [],
+            nextCursor: input.includes('cursor=older-page')
+              ? null
+              : 'older-page',
+          });
+        }
+        if (input.includes('/context')) {
+          contextUrls.push(input);
+          return jsonResponse({});
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(historyUrls).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(historyUrls).toEqual([
+      'http://localhost:5001/api/v1/public/chat/messages?limit=20',
+    ]);
+    expect(contextUrls).toHaveLength(0);
+
+    const shadow = (container.firstElementChild as HTMLElement).shadowRoot!;
+    const launcher = shadow.querySelector('.kw-launcher') as HTMLButtonElement;
+    const list = shadow.querySelector('.kw-list') as HTMLElement;
+    Object.defineProperty(list, 'scrollHeight', {
+      configurable: true,
+      value: 640,
+    });
+    launcher.click();
+    await vi.advanceTimersByTimeAsync(0);
+    (
+      shadow.querySelector('.kw-home .kw-btn-primary') as HTMLButtonElement
+    ).click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(historyUrls).toEqual([
+      'http://localhost:5001/api/v1/public/chat/messages?limit=20',
+    ]);
+    expect(list.scrollTop).toBe(640);
+
+    list.scrollTop = 0;
+    list.dispatchEvent(new Event('scroll'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(historyUrls[1]).toBe(
+      'http://localhost:5001/api/v1/public/chat/messages?cursor=older-page&limit=20',
+    );
+
+    launcher.click();
+    launcher.click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(historyUrls).toHaveLength(2);
+
+    const textarea = shadow.querySelector(
+      '.kw-composer-input',
+    ) as HTMLTextAreaElement;
+    textarea.value = 'Create the conversation';
+    (shadow.querySelector('.kw-composer-send') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(contextUrls).toHaveLength(1);
+
+    widget.destroy();
+  });
+
+  it('posts context for existing history without posting it again on the first local send', async () => {
+    vi.useFakeTimers();
+    const contextUrls: string[] = [];
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(
+            widgetSettings({ askName: false, askEmail: false }),
+          );
+        }
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'resume-1',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        if (input.includes('/messages')) {
+          return jsonResponse({
+            items: [
+              {
+                id: 'existing-message',
+                conversationId: 'conversation-1',
+                clientMessageId: 'existing-client-message',
+                direction: 'outbound',
+                senderType: 'human',
+                senderName: 'Support',
+                content: 'Existing reply',
+                attachments: [],
+                replyTo: null,
+                reactions: [],
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        if (input.includes('/context')) {
+          contextUrls.push(input);
+          return jsonResponse({});
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(contextUrls).toHaveLength(1);
+
+    const shadow = (container.firstElementChild as HTMLElement).shadowRoot!;
+    const launcher = shadow.querySelector('.kw-launcher') as HTMLButtonElement;
+    launcher.click();
+    await vi.advanceTimersByTimeAsync(0);
+    (
+      shadow.querySelector('.kw-home .kw-btn-primary') as HTMLButtonElement
+    ).click();
+    await vi.advanceTimersByTimeAsync(0);
+
+    const textarea = shadow.querySelector(
+      '.kw-composer-input',
+    ) as HTMLTextAreaElement;
+    textarea.value = 'Continue existing conversation';
+    (shadow.querySelector('.kw-composer-send') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(contextUrls).toHaveLength(1);
 
     widget.destroy();
   });
@@ -786,22 +987,6 @@ describe('mount()', () => {
             contactId: 'contact-1',
           });
         }
-        if (input.includes('/messages') && init?.method === 'POST') {
-          const parsed = JSON.parse(init.body as string) as {
-            clientMessageId: string;
-            content: string;
-          };
-          return jsonResponse({
-            id: 'message-1',
-            clientMessageId: parsed.clientMessageId,
-            direction: 'inbound',
-            senderType: 'visitor',
-            senderName: null,
-            content: parsed.content,
-            createdAt: new Date().toISOString(),
-            status: 'sent',
-          });
-        }
         return jsonResponse({ items: [], nextCursor: null });
       }),
     );
@@ -855,13 +1040,16 @@ describe('mount()', () => {
       email: 'jane@example.com',
     });
 
-    const messageCall = calls.find(
+    const restMessageCall = calls.find(
       (call) => call.url.includes('/messages') && call.method === 'POST',
     );
-    expect(messageCall).toBeDefined();
-    expect(JSON.parse(messageCall!.body!)).toMatchObject({
-      content: 'I need help',
-    });
+    expect(restMessageCall).toBeUndefined();
+
+    const sendCall = fakeSocket.emit.mock.calls.find(
+      ([event]) => event === 'message:send',
+    ) as [string, { clientMessageId: string; content: string }] | undefined;
+    expect(sendCall).toBeDefined();
+    expect(sendCall![1]).toMatchObject({ content: 'I need help' });
 
     widget.destroy();
   });

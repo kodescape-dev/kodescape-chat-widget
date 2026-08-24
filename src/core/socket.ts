@@ -1,12 +1,16 @@
 import { io, type Socket } from 'socket.io-client';
 import type {
-  MessageNewEvent,
   MessageFailedEvent,
-  MessageReadEvent,
+  MessageNewEvent,
   MessageReactionsEvent,
+  MessageReadEvent,
+  MessageSendAck,
   MessageStatusEvent,
+  ServerMessage,
   TypingEvent,
 } from './types';
+
+const MESSAGE_SEND_TIMEOUT_MS = 10_000;
 
 export interface ChatSocketHandlers {
   onMessageNew: (event: MessageNewEvent) => void;
@@ -85,6 +89,32 @@ export class ChatSocket {
 
   emitDraftClear(): void {
     this.socket?.emit('visitor:draft:clear');
+  }
+
+  sendMessage(
+    clientMessageId: string,
+    content: string,
+    attachmentIds: string[] = [],
+    replyToMessageId?: string,
+  ): Promise<ServerMessage> {
+    return new Promise((resolve, reject) => {
+      if (!this.socket) {
+        reject(new Error('Not connected'));
+        return;
+      }
+      const timeout = setTimeout(() => {
+        reject(new Error('Message send timed out'));
+      }, MESSAGE_SEND_TIMEOUT_MS);
+      this.socket.emit(
+        'message:send',
+        { clientMessageId, content, attachmentIds, replyToMessageId },
+        (ack: MessageSendAck) => {
+          clearTimeout(timeout);
+          if (ack.ok) resolve(ack.message);
+          else reject(new Error(ack.message));
+        },
+      );
+    });
   }
 
   disconnect(): void {
