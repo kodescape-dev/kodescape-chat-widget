@@ -1,9 +1,10 @@
-import type { MessageAttachment } from '../core/types';
+import type { MessageAttachment, MessageReply } from '../core/types';
 import { createEmojiPicker } from './emoji-picker';
 
 export interface ComposerSubmission {
   content: string;
   attachments: MessageAttachment[];
+  replyToMessageId?: string;
 }
 
 export interface ComposerHandle {
@@ -11,6 +12,7 @@ export interface ComposerHandle {
   focus(): void;
   setDisabled(disabled: boolean): void;
   setPlaceholder(placeholder: string): void;
+  setReply(reply: MessageReply | null): void;
   destroy(): void;
 }
 
@@ -40,6 +42,11 @@ export function createComposer(handlers: {
   form.className = 'kw-composer';
   form.setAttribute('aria-label', 'Send a message');
   let files: SelectedFile[] = [];
+  let reply: MessageReply | null = null;
+
+  const replyPreview = document.createElement('div');
+  replyPreview.className = 'kw-composer-reply';
+  replyPreview.hidden = true;
 
   const selected = document.createElement('div');
   selected.className = 'kw-composer-files';
@@ -87,7 +94,7 @@ export function createComposer(handlers: {
   sendButton.innerHTML = SEND_ICON;
 
   row.append(attachButton, emojiButton, inputWrap, sendButton);
-  form.append(fileInput, selected, picker, row);
+  form.append(fileInput, replyPreview, selected, picker, row);
 
   function setPickerOpen(open: boolean): void {
     if (open) emojiPicker.open();
@@ -108,11 +115,16 @@ export function createComposer(handlers: {
       files.some((item) => item.status !== 'ready')
     )
       return;
-    handlers.onSend({ content, attachments });
+    handlers.onSend({
+      content,
+      attachments,
+      replyToMessageId: reply?.messageId,
+    });
     textarea.value = '';
     for (const item of files)
       if (item.previewUrl) URL.revokeObjectURL(item.previewUrl);
     files = [];
+    setReply(null);
     renderFiles();
   }
 
@@ -192,6 +204,26 @@ export function createComposer(handlers: {
     sendButton.disabled = blocked;
   }
 
+  function setReply(next: MessageReply | null): void {
+    reply = next;
+    replyPreview.replaceChildren();
+    replyPreview.hidden = !next;
+    if (!next) return;
+    const copy = document.createElement('span');
+    const title = document.createElement('strong');
+    title.textContent = `Replying to ${next.senderName || (next.senderType === 'visitor' ? 'Visitor' : 'Support')}`;
+    const body = document.createElement('small');
+    body.textContent = next.content || 'Message';
+    copy.append(title, body);
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.textContent = '×';
+    close.setAttribute('aria-label', 'Cancel reply');
+    close.addEventListener('click', () => setReply(null));
+    replyPreview.append(copy, close);
+    requestAnimationFrame(() => textarea.focus());
+  }
+
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     submit();
@@ -246,6 +278,7 @@ export function createComposer(handlers: {
     setPlaceholder(placeholder) {
       textarea.placeholder = placeholder || 'Write your message…';
     },
+    setReply,
     destroy() {
       document.removeEventListener('pointerdown', closePicker);
       for (const item of files)

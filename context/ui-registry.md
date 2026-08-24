@@ -146,6 +146,14 @@ loading rows (`.kw-skeleton-bubble`) reuse these same row classes for
 alignment but use fixed px widths, not `%` — percentage width on a
 shrink-to-fit flex row resolves to 0 (see architecture.md).
 
+Every confirmed bubble exposes the same compact reaction/reply action bar.
+Quick reactions are `👍 ❤️ 😂 😮`; More reactions reuses `createEmojiPicker()`
+and Reply stages a dismissible composer preview. Persisted reactions group into
+count chips beneath the bubble. Reply snapshots render as a small inset block
+inside the new message. Touch devices keep actions visible because hover is not
+available. Preview mode uses these exact controls and updates its local store;
+production posts through REST and replaces reactions from `message:reactions`.
+
 ## Composer
 
 File: `src/ui/composer.ts`, `src/ui/styles.css`

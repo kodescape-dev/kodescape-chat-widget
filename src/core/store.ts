@@ -1,4 +1,9 @@
-import type { MessageAttachment, ServerMessage } from './types';
+import type {
+  MessageAttachment,
+  MessageReaction,
+  MessageReply,
+  ServerMessage,
+} from './types';
 
 export type LocalMessageStatus =
   'sending' | 'sent' | 'delivered' | 'read' | 'failed';
@@ -9,6 +14,8 @@ export interface LocalMessage {
   direction: 'inbound' | 'outbound';
   content: string;
   attachments?: MessageAttachment[];
+  replyTo?: MessageReply | null;
+  reactions?: MessageReaction[];
   createdAt: string;
   status: LocalMessageStatus;
 }
@@ -45,6 +52,7 @@ export class ChatStore {
     clientMessageId: string,
     content: string,
     attachments: MessageAttachment[] = [],
+    replyTo: MessageReply | null = null,
   ): void {
     this.messages.push({
       id: null,
@@ -52,6 +60,8 @@ export class ChatStore {
       direction: 'inbound',
       content,
       attachments,
+      replyTo,
+      reactions: [],
       createdAt: new Date().toISOString(),
       status: 'sending',
     });
@@ -74,6 +84,8 @@ export class ChatStore {
       pending.createdAt = server.createdAt;
       pending.status = server.status;
       pending.attachments = server.attachments ?? [];
+      pending.replyTo = server.replyTo ?? null;
+      pending.reactions = server.reactions ?? [];
     } else {
       this.messages.push({
         id: server.id,
@@ -81,6 +93,8 @@ export class ChatStore {
         direction: server.direction,
         content: server.content,
         attachments: server.attachments ?? [],
+        replyTo: server.replyTo ?? null,
+        reactions: server.reactions ?? [],
         createdAt: server.createdAt,
         status: server.status,
       });
@@ -118,6 +132,8 @@ export class ChatStore {
         existingByClientId.id = item.id;
         existingByClientId.createdAt = item.createdAt;
         existingByClientId.status = item.status;
+        existingByClientId.replyTo = item.replyTo ?? null;
+        existingByClientId.reactions = item.reactions ?? [];
         changed = true;
         continue;
       }
@@ -127,6 +143,8 @@ export class ChatStore {
         direction: item.direction,
         content: item.content,
         attachments: item.attachments ?? [],
+        replyTo: item.replyTo ?? null,
+        reactions: item.reactions ?? [],
         createdAt: item.createdAt,
         status: item.status,
       });
@@ -163,5 +181,32 @@ export class ChatStore {
 
   receiveRealtime(item: ServerMessage): void {
     this.mergeServerMessages([item]);
+  }
+
+  applyReactions(messageId: string, reactions: MessageReaction[]): void {
+    const message = this.messages.find((item) => item.id === messageId);
+    if (!message) return;
+    message.reactions = reactions;
+    this.emit();
+  }
+
+  togglePreviewReaction(messageId: string, emoji: string): void {
+    const message = this.messages.find((item) => item.id === messageId);
+    if (!message) return;
+    const reactions = [...(message.reactions ?? [])];
+    const index = reactions.findIndex(
+      (reaction) =>
+        reaction.emoji === emoji && reaction.actorType === 'visitor',
+    );
+    if (index >= 0) reactions.splice(index, 1);
+    else
+      reactions.push({
+        emoji,
+        actorType: 'visitor',
+        actorName: null,
+        createdAt: new Date().toISOString(),
+      });
+    message.reactions = reactions;
+    this.emit();
   }
 }

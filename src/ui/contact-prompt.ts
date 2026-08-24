@@ -31,6 +31,11 @@ export function createContactPrompt(handlers: {
   heading.className = 'kw-contact-prompt-heading';
   heading.textContent = 'Want to hear back from us?';
 
+  const description = document.createElement('p');
+  description.className = 'kw-contact-prompt-description';
+  description.textContent =
+    'Leave your details and our team can follow up with you.';
+
   const form = document.createElement('form');
   form.className = 'kw-contact-prompt-form';
 
@@ -66,7 +71,7 @@ export function createContactPrompt(handlers: {
 
   actions.append(dismissButton, submitButton);
   form.append(nameField.wrap, emailField.wrap, actions);
-  el.append(heading, form);
+  el.append(heading, description, form);
 
   form.addEventListener('submit', (event) => {
     event.preventDefault();

@@ -80,6 +80,7 @@ export class ChatApi {
     clientMessageId: string,
     content: string,
     attachmentIds: string[] = [],
+    replyToMessageId?: string,
   ): Promise<ServerMessage> {
     return request<ServerMessage>(
       `${this.apiBaseUrl}/api/v1/public/chat/messages`,
@@ -89,7 +90,30 @@ export class ChatApi {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
-        body: JSON.stringify({ clientMessageId, content, attachmentIds }),
+        body: JSON.stringify({
+          clientMessageId,
+          content,
+          attachmentIds,
+          replyToMessageId,
+        }),
+      },
+    );
+  }
+
+  reactToMessage(
+    accessToken: string,
+    messageId: string,
+    emoji: string,
+  ): Promise<ServerMessage> {
+    return request<ServerMessage>(
+      `${this.apiBaseUrl}/api/v1/public/chat/messages/${messageId}/reactions`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ emoji }),
       },
     );
   }

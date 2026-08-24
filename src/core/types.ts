@@ -97,8 +97,24 @@ export interface ServerMessage {
   senderName: string | null;
   content: string;
   attachments?: MessageAttachment[];
+  replyTo?: MessageReply | null;
+  reactions?: MessageReaction[];
   createdAt: string;
   status: MessageStatus;
+}
+
+export interface MessageReply {
+  messageId: string;
+  senderType: MessageSenderType;
+  senderName: string | null;
+  content: string;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  actorType: MessageSenderType;
+  actorName: string | null;
+  createdAt: string;
 }
 
 export interface ConversationSummary {
@@ -131,9 +147,18 @@ export interface MessageReadEvent {
   readAt: string;
 }
 
+export interface MessageReactionsEvent {
+  conversationId: string;
+  messageId: string;
+  reactions: MessageReaction[];
+}
+
 export interface TypingEvent {
   conversationId: string;
+  actorType?: 'visitor' | 'human';
+  actorId?: string;
   name?: string;
+  avatarUrl?: string | null;
 }
 
 export type DeviceType = 'desktop' | 'mobile' | 'tablet';

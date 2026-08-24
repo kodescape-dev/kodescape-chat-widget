@@ -232,6 +232,13 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 - **Grid:** emoji buttons are `36px` square, `7px` radius, transparent at rest, `var(--kw-surface-sunk)` on hover/focus — same sunk-on-interaction language as Ghost buttons.
 - **Trigger:** reuses the Ghost button style (no new button variant) next to the existing attach button.
 
+### Message Reactions and Replies
+
+- **Actions:** every confirmed bubble exposes four quick emoji reactions, the existing full Emoji Picker, and a reply icon in one compact floating toolbar. The same actions work on visitor and support messages, including the actor's own messages.
+- **Reaction state:** persisted reactions render as compact counted pills below the bubble; selecting the same emoji again toggles the current actor's reaction. Realtime updates replace the complete snapshot so neither side invents counts.
+- **Replies:** selecting Reply adds a dismissible inset preview above the composer. Sent replies carry a compact target preview inside the bubble. Both treatments use the existing sunk surface and primary hairline accent, never a new card style.
+- **Touch:** because hover does not exist, the action row remains visible in touch-only environments. The Admin preview uses the same functional renderer and local reaction state.
+
 ## Do's and Don'ts
 
 ### Do:
@@ -247,5 +254,5 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 - **Don't** use Ink 400 (`#98a2b3`) for text of any kind — icon strokes and borders only.
 - **Don't** add a second filled/brand-colored button on the same screen as the primary CTA.
 - **Don't** invent an unread-count number on the launcher badge — it's a boolean presence dot because no real count data exists in the store or API today. Wire real data first.
-- **Don't** add a functional-looking control (e.g. message reactions) that isn't actually wired to a real capability — every dead affordance in this widget was deliberately left out for that reason. (Attachments and the emoji picker are real, wired exceptions — not dead affordances — see Components.)
+- **Don't** add a functional-looking control unless it is wired end to end. Attachments, emoji insertion, replies, and reactions are persisted capabilities; their preview equivalents use the same renderer with isolated local state.
 - **Don't** give the visitor's own message bubbles a solid, fully-saturated brand fill by default — the light tint is the chosen treatment; solid fill is the legacy/fallback path only.

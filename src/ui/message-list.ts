@@ -1,5 +1,8 @@
 import type { LocalMessage, LocalMessageStatus } from '../core/store';
 import { createBrandMark } from './branding';
+import { createEmojiPicker } from './emoji-picker';
+
+const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮'] as const;
 
 const SCROLL_BOTTOM_THRESHOLD_PX = 16;
 
@@ -51,6 +54,8 @@ export function renderMessages(
   container: HTMLElement,
   messages: readonly LocalMessage[],
   onRetry: (clientMessageId: string) => void,
+  onReact: (messageId: string, emoji: string) => void,
+  onReply: (message: LocalMessage) => void,
   support?: { name: string; avatarUrl: string | null },
 ): void {
   const wasScrolledToBottom =
@@ -64,8 +69,12 @@ export function renderMessages(
     if (!previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)) {
       container.appendChild(renderDate(message.createdAt));
     }
-    const grouped = previous?.direction === message.direction;
-    container.appendChild(renderBubble(message, onRetry, grouped, support));
+    const grouped =
+      previous?.direction === message.direction &&
+      minuteKey(previous.createdAt) === minuteKey(message.createdAt);
+    container.appendChild(
+      renderBubble(message, onRetry, onReact, onReply, grouped, support),
+    );
     previous = message;
   }
 
@@ -77,6 +86,8 @@ export function renderMessages(
 function renderBubble(
   message: LocalMessage,
   onRetry: (clientMessageId: string) => void,
+  onReact: (messageId: string, emoji: string) => void,
+  onReply: (message: LocalMessage) => void,
   grouped: boolean,
   support?: { name: string; avatarUrl: string | null },
 ): HTMLElement {
@@ -84,8 +95,28 @@ function renderBubble(
   row.className = `kw-bubble-row kw-bubble-row--${message.direction}`;
   row.classList.toggle('kw-bubble-row--grouped', grouped);
 
+  if (!grouped) {
+    const time = document.createElement('time');
+    time.className = 'kw-bubble-time';
+    time.dateTime = message.createdAt;
+    time.textContent = formatTime(message.createdAt);
+    row.appendChild(time);
+  }
+
   const bubble = document.createElement('div');
   bubble.className = 'kw-bubble';
+  if (message.replyTo) {
+    const reply = document.createElement('div');
+    reply.className = 'kw-message-reply-preview';
+    const author = document.createElement('strong');
+    author.textContent =
+      message.replyTo.senderName ||
+      (message.replyTo.senderType === 'visitor' ? 'Visitor' : 'Support');
+    const body = document.createElement('span');
+    body.textContent = message.replyTo.content || 'Message';
+    reply.append(author, body);
+    bubble.appendChild(reply);
+  }
   if (message.content) {
     const content = document.createElement('span');
     content.textContent = message.content;
@@ -134,11 +165,64 @@ function renderBubble(
   line.appendChild(bubble);
   row.appendChild(line);
 
-  const time = document.createElement('time');
-  time.className = 'kw-bubble-time';
-  time.dateTime = message.createdAt;
-  time.textContent = formatTime(message.createdAt);
-  row.appendChild(time);
+  if (message.id) {
+    const actions = document.createElement('div');
+    actions.className = 'kw-message-actions';
+    for (const emoji of QUICK_REACTIONS) {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.textContent = emoji;
+      button.setAttribute('aria-label', `React with ${emoji}`);
+      button.addEventListener('click', () => onReact(message.id!, emoji));
+      actions.appendChild(button);
+    }
+    const more = document.createElement('button');
+    more.type = 'button';
+    more.className = 'kw-message-action-icon';
+    more.textContent = '☺';
+    more.setAttribute('aria-label', 'More reactions');
+    const picker = createEmojiPicker((emoji) => {
+      onReact(message.id!, emoji);
+      picker.close();
+      more.setAttribute('aria-expanded', 'false');
+    });
+    picker.el.classList.add('kw-reaction-picker');
+    more.addEventListener('click', () => {
+      const open = !picker.isOpen();
+      if (open) picker.open();
+      else picker.close();
+      more.setAttribute('aria-expanded', String(open));
+    });
+    const reply = document.createElement('button');
+    reply.type = 'button';
+    reply.className = 'kw-message-action-icon';
+    reply.textContent = '↩';
+    reply.setAttribute('aria-label', 'Reply to message');
+    reply.addEventListener('click', () => onReply(message));
+    actions.append(more, reply, picker.el);
+    bubble.appendChild(actions);
+  }
+
+  const groupedReactions = new Map<string, number>();
+  for (const reaction of message.reactions ?? []) {
+    groupedReactions.set(
+      reaction.emoji,
+      (groupedReactions.get(reaction.emoji) ?? 0) + 1,
+    );
+  }
+  if (groupedReactions.size > 0 && message.id) {
+    const reactions = document.createElement('div');
+    reactions.className = 'kw-message-reactions';
+    for (const [emoji, count] of groupedReactions) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.textContent = `${emoji} ${count}`;
+      chip.setAttribute('aria-label', `${emoji} ${count} reactions`);
+      chip.addEventListener('click', () => onReact(message.id!, emoji));
+      reactions.appendChild(chip);
+    }
+    row.appendChild(reactions);
+  }
 
   if (message.status === 'sending') {
     const status = document.createElement('span');
@@ -174,6 +258,11 @@ function renderBubble(
 function dayKey(iso: string): string {
   const date = new Date(iso);
   return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
+
+function minuteKey(iso: string): string {
+  const date = new Date(iso);
+  return `${dayKey(iso)}-${date.getHours()}-${date.getMinutes()}`;
 }
 
 function renderDate(iso: string): HTMLElement {

@@ -179,4 +179,24 @@ describe('ChatStore', () => {
 
     expect(listener).not.toHaveBeenCalled();
   });
+
+  it('applies server reaction snapshots and toggles preview reactions', () => {
+    const store = new ChatStore();
+    store.mergeServerMessages([serverMessage({ id: 'msg-1' })]);
+
+    store.applyReactions('msg-1', [
+      {
+        emoji: '❤️',
+        actorType: 'human',
+        actorName: 'Support',
+        createdAt: '2026-01-01T00:02:00.000Z',
+      },
+    ]);
+    expect(store.getMessages()[0].reactions).toHaveLength(1);
+
+    store.togglePreviewReaction('msg-1', '👍');
+    expect(store.getMessages()[0].reactions).toHaveLength(2);
+    store.togglePreviewReaction('msg-1', '👍');
+    expect(store.getMessages()[0].reactions).toHaveLength(1);
+  });
 });

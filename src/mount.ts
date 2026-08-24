@@ -6,6 +6,7 @@ import type { LocalMessage } from './core/store';
 import type {
   DeviceDisplaySettings,
   MessageAttachment,
+  TypingEvent,
   WidgetDeviceSettings,
   WidgetSettings,
 } from './core/types';
@@ -47,6 +48,7 @@ const DEFAULT_API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? 'https://api.kodescape.com';
 const HISTORY_PAGE_LIMIT = 50;
 const TYPING_STOP_DELAY_MS = 2500;
+const REMOTE_TYPING_TIMEOUT_MS = 6000;
 const CONTEXT_POLL_INTERVAL_MS = 2000;
 const DEFAULT_LEAD_SETTINGS: Pick<
   WidgetSettings,
@@ -127,6 +129,14 @@ const PREVIEW_MESSAGES = [
     senderName: null,
     content: 'Hi! I have a question about my account.',
     attachments: [],
+    reactions: [
+      {
+        emoji: '👍',
+        actorType: 'human' as const,
+        actorName: 'Kodescape Support',
+        createdAt: new Date(Date.now() - 3.5 * 60_000).toISOString(),
+      },
+    ],
     status: 'read' as const,
     createdAt: new Date(Date.now() - 4 * 60_000).toISOString(),
   },
@@ -138,6 +148,7 @@ const PREVIEW_MESSAGES = [
     senderName: 'Kodescape Support',
     content: 'Of course — what can we help you with?',
     attachments: [],
+    reactions: [],
     status: 'delivered' as const,
     createdAt: new Date(Date.now() - 3 * 60_000).toISOString(),
   },
@@ -160,6 +171,13 @@ const PREVIEW_MESSAGES = [
     senderName: 'Kodescape Support',
     content: 'Thanks for letting us know. I can help you with that!',
     attachments: [],
+    replyTo: {
+      messageId: 'preview-3',
+      senderType: 'visitor' as const,
+      senderName: null,
+      content: "I'm having trouble updating my payment method.",
+    },
+    reactions: [],
     status: 'delivered' as const,
     createdAt: new Date(Date.now() - 60_000).toISOString(),
   },
@@ -202,6 +220,11 @@ export function mount(options: MountOptions): MountedWidget {
   let contactPromptHandled = false;
   let typingActive = false;
   let typingStopTimer: ReturnType<typeof setTimeout> | null = null;
+  const remoteTypers = new Map<
+    string,
+    { id: string; name: string; avatarUrl?: string | null }
+  >();
+  const remoteTypingTimers = new Map<string, ReturnType<typeof setTimeout>>();
   let readMarkInFlight = false;
 
   const initialUrl = location.href;
@@ -232,12 +255,19 @@ export function mount(options: MountOptions): MountedWidget {
   (options.target ?? document.body).appendChild(host);
 
   const unsubscribe = store.subscribe(() => {
-    renderMessages(chatWindow.listEl, store.getMessages(), handleRetry, {
-      name:
-        currentSettings?.supportDisplayName ??
-        DEFAULT_WIDGET_SETTINGS.supportDisplayName,
-      avatarUrl: currentSettings?.supportAvatarUrl ?? null,
-    });
+    renderMessages(
+      chatWindow.listEl,
+      store.getMessages(),
+      handleRetry,
+      handleReaction,
+      handleReply,
+      {
+        name:
+          currentSettings?.supportDisplayName ??
+          DEFAULT_WIDGET_SETTINGS.supportDisplayName,
+        avatarUrl: currentSettings?.supportAvatarUrl ?? null,
+      },
+    );
     chatWindow.setConnectionStatus(store.isConnected());
     const hasUnseen = hasUnseenAdminMessage();
     launcher.setUnread(isOpen === false && hasUnseen);
@@ -535,6 +565,46 @@ export function mount(options: MountOptions): MountedWidget {
     if (currentConversationId) socket.emitTypingStop(currentConversationId);
   }
 
+  function renderRemoteTypers(): void {
+    chatWindow.setTypingParticipants([...remoteTypers.values()]);
+  }
+
+  function removeRemoteTyper(id: string): void {
+    remoteTypers.delete(id);
+    const timer = remoteTypingTimers.get(id);
+    if (timer) clearTimeout(timer);
+    remoteTypingTimers.delete(id);
+    renderRemoteTypers();
+  }
+
+  function handleRemoteTypingStart(event: TypingEvent): void {
+    if (currentConversationId && event.conversationId !== currentConversationId)
+      return;
+    const id = event.actorId ?? event.name ?? 'support';
+    remoteTypers.set(id, {
+      id,
+      name: event.name ?? 'Kodescape Support',
+      avatarUrl: event.avatarUrl,
+    });
+    const previousTimer = remoteTypingTimers.get(id);
+    if (previousTimer) clearTimeout(previousTimer);
+    remoteTypingTimers.set(
+      id,
+      setTimeout(() => removeRemoteTyper(id), REMOTE_TYPING_TIMEOUT_MS),
+    );
+    renderRemoteTypers();
+  }
+
+  function handleRemoteTypingStop(event: TypingEvent): void {
+    if (event.actorId) removeRemoteTyper(event.actorId);
+    else {
+      remoteTypers.clear();
+      remoteTypingTimers.forEach(clearTimeout);
+      remoteTypingTimers.clear();
+      renderRemoteTypers();
+    }
+  }
+
   function handleComposerInput(value: string): void {
     if (!currentConversationId) return;
     if (!value) {
@@ -575,16 +645,17 @@ export function mount(options: MountOptions): MountedWidget {
             playIncomingSound();
           }
         },
-        onConnectionChange: (connected) => store.setConnected(connected),
+        onConnectionChange: (connected) => {
+          store.setConnected(connected);
+          if (!connected) handleRemoteTypingStop({ conversationId: '' });
+        },
         onReconnectBackfillNeeded: () => void backfillAfterReconnect(),
         onMessageStatus: (event) => store.applyDelivered(event.messageId),
         onMessageRead: (event) => store.applyRead(event.messageIds),
-        onTypingStart: (event) =>
-          chatWindow.setTyping(
-            true,
-            `${event.name ?? 'Kodescape Support'} is typing`,
-          ),
-        onTypingStop: () => chatWindow.setTyping(false),
+        onMessageReactions: (event) =>
+          store.applyReactions(event.messageId, event.reactions),
+        onTypingStart: handleRemoteTypingStart,
+        onTypingStop: handleRemoteTypingStop,
       })
       .catch(() => {
         store.setConnected(false);
@@ -629,10 +700,30 @@ export function mount(options: MountOptions): MountedWidget {
   function handleSend(submission: ComposerSubmission): void {
     stopTyping();
     const clientMessageId = crypto.randomUUID();
+    const replyTarget = submission.replyToMessageId
+      ? store
+          .getMessages()
+          .find((message) => message.id === submission.replyToMessageId)
+      : undefined;
+    const replyTo = replyTarget?.id
+      ? {
+          messageId: replyTarget.id,
+          senderType:
+            replyTarget.direction === 'inbound'
+              ? ('visitor' as const)
+              : ('human' as const),
+          senderName:
+            replyTarget.direction === 'inbound'
+              ? null
+              : (currentSettings?.supportDisplayName ?? 'Support'),
+          content: replyTarget.content.slice(0, 280),
+        }
+      : null;
     store.addPending(
       clientMessageId,
       submission.content,
       submission.attachments,
+      replyTo,
     );
     if (options.preview) {
       store.confirmSent(clientMessageId, {
@@ -644,6 +735,8 @@ export function mount(options: MountOptions): MountedWidget {
         content: submission.content,
         attachments: submission.attachments,
         status: 'sent',
+        replyTo,
+        reactions: [],
         createdAt: new Date().toISOString(),
       });
       return;
@@ -652,6 +745,7 @@ export function mount(options: MountOptions): MountedWidget {
       clientMessageId,
       submission.content,
       submission.attachments,
+      submission.replyToMessageId,
     );
   }
 
@@ -665,13 +759,42 @@ export function mount(options: MountOptions): MountedWidget {
       clientMessageId,
       message.content,
       message.attachments ?? [],
+      message.replyTo?.messageId,
     );
+  }
+
+  function handleReply(message: LocalMessage): void {
+    if (!message.id) return;
+    chatWindow.setReply({
+      messageId: message.id,
+      senderType: message.direction === 'inbound' ? 'visitor' : 'human',
+      senderName:
+        message.direction === 'outbound'
+          ? (currentSettings?.supportDisplayName ?? 'Support')
+          : null,
+      content: message.content.slice(0, 280),
+    });
+  }
+
+  function handleReaction(messageId: string, emoji: string): void {
+    if (options.preview) {
+      store.togglePreviewReaction(messageId, emoji);
+      return;
+    }
+    void (async () => {
+      try {
+        const accessToken = await session.ensureAccessToken();
+        const message = await api.reactToMessage(accessToken, messageId, emoji);
+        store.applyReactions(messageId, message.reactions ?? []);
+      } catch {}
+    })();
   }
 
   async function sendPending(
     clientMessageId: string,
     content: string,
     attachments: MessageAttachment[] = [],
+    replyToMessageId?: string,
   ): Promise<void> {
     try {
       const accessToken = await session.ensureAccessToken();
@@ -680,6 +803,7 @@ export function mount(options: MountOptions): MountedWidget {
         clientMessageId,
         content,
         attachments.map((attachment) => attachment.id),
+        replyToMessageId,
       );
       store.confirmSent(clientMessageId, serverMessage);
       if (!hasSentFirstMessage) {
@@ -806,6 +930,8 @@ export function mount(options: MountOptions): MountedWidget {
       window.removeEventListener('message', handlePreviewMessage);
       if (contextPollTimer) clearInterval(contextPollTimer);
       if (typingStopTimer) clearTimeout(typingStopTimer);
+      remoteTypingTimers.forEach(clearTimeout);
+      remoteTypingTimers.clear();
       socket.disconnect();
       chatWindow.destroy();
       host.remove();

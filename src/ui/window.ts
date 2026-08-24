@@ -1,6 +1,6 @@
 import { createComposer } from './composer';
 import type { ComposerSubmission } from './composer';
-import type { MessageAttachment } from '../core/types';
+import type { MessageAttachment, MessageReply } from '../core/types';
 import { createTypingIndicator } from './typing-indicator';
 import { createHomeView } from './home';
 import { createLeadCaptureForm } from './lead-capture';
@@ -30,6 +30,7 @@ export interface ChatWindowHandle {
     avatarUrl: string | null,
   ): void;
   setComposerPlaceholder(text: string): void;
+  setReply(reply: MessageReply | null): void;
   setResumeAvailable(available: boolean): void;
   setNotificationsEnabled(enabled: boolean): void;
   showHome(): void;
@@ -37,7 +38,13 @@ export interface ChatWindowHandle {
   configureLeadCapture(config: LeadCaptureConfig): void;
   showChat(): void;
   focusComposer(): void;
-  setTyping(visible: boolean, label?: string): void;
+  setTypingParticipants(
+    participants: Array<{
+      id: string;
+      name: string;
+      avatarUrl?: string | null;
+    }>,
+  ): void;
   configureContactPrompt(config: ContactPromptConfig): void;
   showContactPrompt(): void;
   hideContactPrompt(): void;
@@ -319,6 +326,10 @@ export function createChatWindow(handlers: {
     setComposerPlaceholder(text) {
       composer.setPlaceholder(text);
     },
+    setReply(reply) {
+      composer.setReply(reply);
+      if (reply) composer.focus();
+    },
     setResumeAvailable(available) {
       home.setResumeAvailable(available);
     },
@@ -341,8 +352,8 @@ export function createChatWindow(handlers: {
     focusComposer() {
       composer.focus();
     },
-    setTyping(visible, label) {
-      typingIndicator.setVisible(visible, label);
+    setTypingParticipants(participants) {
+      typingIndicator.setParticipants(participants);
     },
     configureContactPrompt(config) {
       contactPrompt.configure(config);

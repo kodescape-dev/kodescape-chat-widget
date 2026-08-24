@@ -133,6 +133,17 @@ Mirrors `VisitorSessionService` on the API side exactly:
 
 ## API client (`src/core/api.ts`)
 
+### Internal-note privacy boundary
+
+- Internal notes belong exclusively to the Admin/API Inbox. The widget must never render, backfill, receive over sockets, react to, or expose messages whose API kind is `internal_note`.
+- The API enforces this boundary by filtering widget history/backfill and emitting internal-note realtime events only to organization Inbox rooms. No widget UI or public message contract is extended for notes or teammate mentions.
+
+### Agent typing indicator
+
+- The widget emits visitor typing start/stop from composer input without changing composer styling.
+- Remote agent typing is tracked per actor ID, supports multiple simultaneous agents, and renders up to three small stacked agent avatars followed by an animated three-dot pill above the composer.
+- Each actor has an independent six-second stale timeout; explicit stop, socket disconnect, and widget destruction clear typing state and timers.
+
 Thin `fetch` wrappers over `kodescape-cms-api`'s
 `/api/v1/public/chat/*` controller
 (`src/communications/widget/public-chat.controller.ts` on that side).
@@ -211,6 +222,10 @@ The composer supports emoji, paste/drop/file selection, text-only,
 attachment-only, and mixed messages. Files are uploaded over REST, remain
 removable/retryable before send, and are bound to the durable message write;
 Socket.IO only delivers the already-persisted safe message payload.
+Replies add `replyToMessageId` to the send request and persist a compact target
+snapshot. Reactions toggle through REST and synchronize as complete
+`message:reactions` snapshots; `ChatStore.applyReactions` replaces the array so
+REST responses, socket delivery, reconnect history, and Admin changes converge.
 
 ## Isolated Admin preview
 
