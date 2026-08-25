@@ -65,9 +65,10 @@ only" contract above.
    then appears with the org's
    `primaryColor` action styling, `backgroundColor` widget surfaces, and
    `textColor` readable foreground even before the visitor opens anything. If that call
-   fails (widget disabled, misconfigured, network down), the host stays hidden;
-   generic defaults are never exposed on a customer site. Session and socket
-   startup remain independent of this visual gate.
+   fails (widget disabled, misconfigured, network down), `applyBranding` runs
+   with `DEFAULT_WIDGET_SETTINGS` instead so the host still reveals — this call
+   is cosmetic only, never a gate on the widget's availability. Session and
+   socket startup remain independent of this visual gate.
    `deviceSettings.desktop` and `.mobile` independently control display,
    left/right position, icon-vs-label launcher style, bottom/side offsets, and
    small/medium/large launcher size. The mobile breakpoint is `480px`; tablets

@@ -206,6 +206,46 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('reveals the widget with built-in defaults if widget-settings fails to load', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(null, false);
+        }
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'resume-1',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        return jsonResponse({ items: [], nextCursor: null });
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    const host = container.firstElementChild as HTMLElement;
+
+    expect(host.style.display).toBe('none');
+
+    await flush();
+
+    expect(host.style.display).toBe('');
+    expect(host.style.getPropertyValue('--kw-primary-color')).toBe('#173bd3');
+    expect(
+      host.shadowRoot!.querySelector('.kw-launcher')!.textContent,
+    ).toContain('Chat with us');
+
+    widget.destroy();
+  });
+
   it('connects visitor presence as soon as the site loads', async () => {
     const { mount } = await import('../../src/mount');
     const widget = mount({

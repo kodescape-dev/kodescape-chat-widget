@@ -316,7 +316,7 @@ export function mount(options: MountOptions): MountedWidget {
     void api
       .getWidgetSettings(options.siteId)
       .then(applyBranding)
-      .catch(() => {});
+      .catch(() => applyBranding(DEFAULT_WIDGET_SETTINGS));
     connectVisitorSocket();
   }
 
