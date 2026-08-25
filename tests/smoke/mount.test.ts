@@ -161,6 +161,51 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('keeps the widget hidden until API settings are applied', async () => {
+    let resolveSettings!: (response: ReturnType<typeof jsonResponse>) => void;
+    const settingsResponse = new Promise<ReturnType<typeof jsonResponse>>(
+      (resolve) => {
+        resolveSettings = resolve;
+      },
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) return settingsResponse;
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'resume-1',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        return jsonResponse({ items: [], nextCursor: null });
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    const host = container.firstElementChild as HTMLElement;
+
+    expect(host.style.display).toBe('none');
+
+    resolveSettings(jsonResponse(widgetSettings()));
+    await flush();
+
+    expect(host.style.display).toBe('');
+    expect(host.style.getPropertyValue('--kw-primary-color')).toBe('#123456');
+    expect(
+      host.shadowRoot!.querySelector('.kw-launcher')!.textContent,
+    ).toContain('Chat now');
+
+    widget.destroy();
+  });
+
   it('connects visitor presence as soon as the site loads', async () => {
     const { mount } = await import('../../src/mount');
     const widget = mount({

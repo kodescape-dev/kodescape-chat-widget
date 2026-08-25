@@ -197,6 +197,7 @@ export function mount(options: MountOptions): MountedWidget {
 
   const host = document.createElement('div');
   host.style.all = 'initial';
+  host.style.display = 'none';
   const shadow = host.attachShadow({ mode: 'open' });
 
   const styleEl = document.createElement('style');

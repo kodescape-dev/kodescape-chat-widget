@@ -36,12 +36,13 @@ only" contract above.
    It also exposes `window.KodescapeChatWidget = { mount }` so the same
    entry point works from a manual `import` (used by the dev harness and
    by tests) without relying on `document.currentScript`.
-2. `mount()` creates one `<div>` host element, attaches an open Shadow
+2. `mount()` creates one initially hidden `<div>` host element, attaches an open Shadow
    DOM to it, injects a single `<style>` tag (the CSS is imported via
    Vite's `?inline` query so it ships as a bundled string, not a separate
    network request), and appends the host to `document.body` (or
    `options.target`).
-3. Only the launcher button renders immediately. The panel itself is a
+3. The launcher is revealed only after API settings have been applied, so
+   built-in defaults never flash before organization branding. The panel itself is a
    three-view shell (`src/ui/window.ts`: home / lead-capture / chat,
    toggled via `hidden` on nodes that all exist in the DOM up front, not
    created per switch) — see "UI views" below. The authenticated socket
@@ -60,12 +61,13 @@ only" contract above.
 4. Widget configuration (`GET /public/chat/widget-settings` — support
    identity, color, launcher, content, visitor capture, device/path visibility)
    is fetched independently,
-   in parallel, right away, so the launcher can pick up the org's
+   in parallel, right away. The host stays hidden until the response is applied,
+   then appears with the org's
    `primaryColor` action styling, `backgroundColor` widget surfaces, and
    `textColor` readable foreground even before the visitor opens anything. If that call
-   fails (widget disabled, misconfigured, network down), the widget falls
-   back to its built-in defaults and stays fully usable — this call is
-   cosmetic only, never a gate on the send path.
+   fails (widget disabled, misconfigured, network down), the host stays hidden;
+   generic defaults are never exposed on a customer site. Session and socket
+   startup remain independent of this visual gate.
    `deviceSettings.desktop` and `.mobile` independently control display,
    left/right position, icon-vs-label launcher style, bottom/side offsets, and
    small/medium/large launcher size. The mobile breakpoint is `480px`; tablets
