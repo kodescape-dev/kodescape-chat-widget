@@ -17,9 +17,9 @@ displays to the org — the _only_ public embed contract is the `data-site-id`
 attribute. The customer's site never configures, or even knows, which
 Kodescape API the widget talks to.
 
-The API base URL is baked in at build time instead, via Vite's per-mode
-env files: `.env.development` (`http://localhost:5001`) and
-`.env.production` (`https://api.kodescape.com`), read in `mount.ts` as
+The API base URL is baked in at build time via Vite's per-mode env files:
+`.env.development` (`http://localhost:5001`) and `.env.production`
+(`https://api.kodescape.com`), read in `mount.ts` as
 `import.meta.env.VITE_API_BASE_URL`. `pnpm build` (production mode) is
 what a real release ships; `pnpm build:dev` produces a build wired to a
 local `cms-api` instead, for embedding in a site under local test (see

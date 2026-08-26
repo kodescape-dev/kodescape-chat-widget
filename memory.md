@@ -294,11 +294,10 @@ Last updated: 2026-08-21
   Kodescape API the widget talks to — only `data-site-id`.
 - `src/mount.ts`: `DEFAULT_API_BASE_URL` now reads
   `import.meta.env.VITE_API_BASE_URL` (falling back to
-  `https://api.kodescape.com`), baked in by Vite at build time via new
+  `https://api.kodescape.com`), baked in by Vite at build time via
   `.env.development` (`http://localhost:5001`) and `.env.production`
-  (`https://api.kodescape.com`) files — both committed (no secrets, just
-  public URLs; `.gitignore` only excludes `.env`/`.env.local`). The
-  script-tag auto-init path no longer reads `data-api-base-url` from
+  (`https://api.kodescape.com`) files. The script-tag auto-init path
+  no longer reads `data-api-base-url` from
   `document.currentScript.dataset` at all.
 - New `pnpm build:dev` script (`vite build --mode development`) —
   produces a build wired to a local `cms-api`, for embedding in a site
@@ -1141,3 +1140,59 @@ preview to admin inbox`" appeared mid-session, folding 5 files of
 - Same standing one as every prior entry in this file: what creates the
   auto-commits, and (from an earlier entry) what was live-editing this
   working tree outside any session that time. Still unidentified.
+
+---
+
+# Memory — Starter icons replaced, home/list scrollbar + padding refinement
+
+Last updated: 2026-08-27
+
+## What was built
+
+- `src/ui/home.ts`: replaced the four starter icons (`account`, `billing`,
+  `issue`, `conversation`) with five new ones (`rocket`, `package`,
+  `creditCard`, `lifeBuoy`, `messages`). `starterIconType()` regex matching
+  updated from narrow nouns (account/profile/user/login) to broader intent
+  categories (getting-started/welcome/new, product/service/feature,
+  pricing/plan/cost, support/help/issue, team/contact/talk/chat).
+- `src/ui/styles.css`: new `.kw-starter-icon--{rocket,package,creditCard,
+  lifeBuoy,messages}` classes with distinct color/bg pairs (orange, violet,
+  emerald, cyan, brand-primary). Added hover-reveal scrollbar for `.kw-home`
+  (Firefox `scrollbar-color` + WebKit `::-webkit-scrollbar-thumb`), matching
+  the existing `.kw-list` pattern. `.kw-list` scrollbar opacity toned down
+  (24% → 14% default, 34% → 24% hover). Asymmetric padding on `.kw-home`
+  (`16px 6px 16px 20px`) and `.kw-list` (`14px 8px 14px 20px`) — tighter
+  right edge for a cleaner scroll gutter.
+- `memory.md`: minor prose cleanup in the "API base URL" entry (removed
+  redundant "both committed" clause).
+- `.env.dev` renamed to `.env.example` (staged, not yet committed).
+
+## Decisions made
+
+- Starter icon categories are intent-based (what the visitor wants), not
+  noun-based (what the icon depicts) — more resilient to real welcome
+  message copy that doesn't match rigid keyword groups.
+- Scrollbar hover-reveal on `.kw-home` matches the `.kw-list` pattern
+  already in use — same opacity ramp (14% → 24% on thumb hover), same
+  WebKit track transparency.
+
+## Problems solved
+
+None — this was a visual refinement pass, not a bug fix.
+
+## Current state
+
+- Uncommitted: `src/ui/home.ts`, `src/ui/styles.css`, `memory.md`,
+  `.env.dev → .env.example` (staged). Working tree is coherent, no build
+  breakage from these changes.
+- All prior standing items (emoji-picker committed, auto-commit pattern,
+  untested live round-trip) remain unchanged.
+
+## Next session starts with
+
+- Nothing outstanding on this specific change. Same standing items from
+  prior entries (cross-repo DoD, auto-commit investigation).
+
+## Open questions
+
+- None new.

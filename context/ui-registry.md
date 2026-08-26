@@ -298,3 +298,50 @@ Files: `src/ui/launcher.ts`, `src/ui/styles.css`
 | Accent usage     | unread count uses a small high-contrast badge backed by real store state        |
 
 **Pattern notes:** Presence remains functional but is not visualized on the closed launcher. Unread is count-backed and updates when messages are read; do not substitute a decorative online dot or fabricated count.
+
+---
+
+## Starter Icons (Home View)
+
+File: `src/ui/home.ts`, `src/ui/styles.css`
+Last updated: 2026-08-27
+
+| Icon         | Color       | Background  | Intent keywords                                      |
+| ------------ | ----------- | ----------- | ---------------------------------------------------- |
+| `rocket`     | `#f97316`   | `#fff7ed`   | getting-started, welcome, new, start, begin, intro   |
+| `package`    | `#8b5cf6`   | `#f5f3ff`   | product, service, feature, solution                  |
+| `creditCard` | `#10b981`   | `#ecfdf5`   | pricing, plan, cost, billing, subscription           |
+| `lifeBuoy`   | `#06b6d4`   | `#ecfeff`   | support, help, issue, problem, bug, error, technical |
+| `messages`   | `var(--kw-primary-color)` | `var(--kw-brand-soft)` | team, contact, talk, chat, human, agent, sales |
+
+**Pattern notes:** Categories are intent-based (what the visitor wants), not
+noun-based (what the icon depicts). The fallback chain is
+`['rocket', 'package', 'creditCard', 'lifeBuoy', 'messages'][index]` — if
+no regex matches, icons cycle by position. The `messages` icon uses the
+brand-primary token (same as the composer send button), making it the
+"talk to us" accent. Each icon is a 24×24 inline SVG with `1.8px` stroke,
+wrapped in a `36px` circle with the color/bg pair above.
+
+## Home & List Scrollbar
+
+File: `src/ui/styles.css`
+Last updated: 2026-08-27
+
+| Property         | `.kw-home` (Firefox)                        | `.kw-home` (WebKit)                          | `.kw-list` (Firefox)                         | `.kw-list` (WebKit)                          |
+| ---------------- | ------------------------------------------- | -------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
+| Default thumb    | `transparent`                               | `transparent`                                | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` |
+| Hover thumb      | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same |
+| Thumb hover      | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same |
+| Track            | `transparent`                               | `transparent`                                | `transparent`                                | `transparent`                                |
+| Width            | native                                      | `5px`                                        | native                                       | `5px`                                        |
+
+**Pattern notes:** `.kw-home` scrollbar is fully transparent at rest (scrollbar
+invisible until the area is hovered), matching the `.kw-list` pattern but
+starting from zero rather than 14% — a deliberate distinction: the message
+list shows a faint hint of the scrollbar even at rest (it's a long, actively
+scrolled surface), while the home view hides it completely (shorter content,
+less scroll interaction). Both converge to the same 14%/24% opacity ramp on
+interaction. `.kw-list` padding is `14px 8px 14px 20px` (asymmetric: tighter
+right edge for the scrollbar gutter). `.kw-home` padding is
+`16px 6px 16px 20px` (same right-edge pattern, slightly more vertical
+breathing room for the greeting/CTA layout).
