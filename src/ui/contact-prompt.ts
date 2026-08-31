@@ -29,12 +29,12 @@ export function createContactPrompt(handlers: {
 
   const heading = document.createElement('p');
   heading.className = 'kw-contact-prompt-heading';
-  heading.textContent = 'Want to hear back from us?';
+  heading.textContent = 'Stay in the loop';
 
   const description = document.createElement('p');
   description.className = 'kw-contact-prompt-description';
   description.textContent =
-    'Leave your details and our team can follow up with you.';
+    'Share your details so our team can follow up if you step away.';
 
   const form = document.createElement('form');
   form.className = 'kw-contact-prompt-form';
@@ -67,7 +67,7 @@ export function createContactPrompt(handlers: {
   const submitButton = document.createElement('button');
   submitButton.type = 'submit';
   submitButton.className = 'kw-contact-prompt-submit';
-  submitButton.textContent = 'Share';
+  submitButton.textContent = 'Share details';
 
   actions.append(dismissButton, submitButton);
   form.append(nameField.wrap, emailField.wrap, actions);

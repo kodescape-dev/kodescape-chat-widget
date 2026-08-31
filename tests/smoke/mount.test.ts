@@ -1216,7 +1216,7 @@ describe('mount()', () => {
     widget.destroy();
   });
 
-  it('skips the pre-chat form and auto-resumes when the resumed session IS associated with a Contact', async () => {
+  it('skips the pre-chat form and auto-resumes an existing conversation associated with a Contact', async () => {
     localStorage.setItem(
       'kodescape_chat_resume_token:site-1',
       'identified-resume-token',
@@ -1236,7 +1236,28 @@ describe('mount()', () => {
             expiresAt: new Date(Date.now() + 900_000).toISOString(),
           });
         }
-        return jsonResponse({ items: [], nextCursor: null });
+        if (input.includes('/messages')) {
+          return jsonResponse({
+            items: [
+              {
+                id: 'existing-message',
+                conversationId: 'conversation-1',
+                clientMessageId: 'existing-client-message',
+                direction: 'inbound',
+                senderType: 'visitor',
+                senderName: null,
+                content: 'Existing conversation',
+                attachments: [],
+                replyTo: null,
+                reactions: [],
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        return jsonResponse({});
       }),
     );
 
@@ -1263,6 +1284,208 @@ describe('mount()', () => {
     ) as HTMLElement;
     expect(chatView.hidden).toBe(false);
     expect(leadCapture.hidden).toBe(true);
+
+    widget.destroy();
+  });
+
+  it('keeps the home view after reload when a resumed session has no conversation history', async () => {
+    localStorage.setItem(
+      'kodescape_chat_resume_token:site-1',
+      'empty-resume-token',
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(
+            widgetSettings({ contactCollectionMode: 'after_first_message' }),
+          );
+        }
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'empty-resume-token',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            contactId: null,
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        if (input.includes('/messages')) {
+          return jsonResponse({ items: [], nextCursor: null });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+
+    const shadow = container.firstElementChild!.shadowRoot!;
+    (shadow.querySelector('.kw-launcher') as HTMLButtonElement).click();
+    await flush();
+    await flush();
+
+    expect((shadow.querySelector('.kw-home') as HTMLElement).hidden).toBe(
+      false,
+    );
+    expect((shadow.querySelector('.kw-chat-view') as HTMLElement).hidden).toBe(
+      true,
+    );
+    expect(
+      (shadow.querySelector('.kw-resume-link') as HTMLButtonElement).hidden,
+    ).toBe(true);
+
+    widget.destroy();
+  });
+
+  it('keeps the panel hidden while resolving the first-open destination view', async () => {
+    localStorage.setItem(
+      'kodescape_chat_resume_token:site-1',
+      'existing-resume-token',
+    );
+    let resolveSession!: (response: ReturnType<typeof jsonResponse>) => void;
+    const sessionResponse = new Promise<ReturnType<typeof jsonResponse>>(
+      (resolve) => {
+        resolveSession = resolve;
+      },
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(widgetSettings());
+        }
+        if (input.includes('/session')) return sessionResponse;
+        if (input.includes('/messages')) {
+          return jsonResponse({
+            items: [
+              {
+                id: 'existing-message',
+                conversationId: 'conversation-1',
+                clientMessageId: 'existing-client-message',
+                direction: 'inbound',
+                senderType: 'visitor',
+                senderName: null,
+                content: 'Existing conversation',
+                attachments: [],
+                replyTo: null,
+                reactions: [],
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const panel = shadow.querySelector('.kw-panel') as HTMLElement;
+    const leadCapture = shadow.querySelector('.kw-lead-capture') as HTMLElement;
+    (shadow.querySelector('.kw-launcher') as HTMLButtonElement).click();
+
+    expect(panel.hidden).toBe(true);
+    expect(leadCapture.hidden).toBe(true);
+
+    resolveSession(
+      jsonResponse({
+        resumeToken: 'existing-resume-token',
+        accessToken: 'access-1',
+        visitorId: 'visitor-1',
+        contactId: 'contact-1',
+        expiresAt: new Date(Date.now() + 900_000).toISOString(),
+      }),
+    );
+    await flush();
+    await flush();
+
+    expect(panel.hidden).toBe(false);
+    expect(leadCapture.hidden).toBe(true);
+    expect((shadow.querySelector('.kw-chat-view') as HTMLElement).hidden).toBe(
+      false,
+    );
+
+    widget.destroy();
+  });
+
+  it('restores the contact prompt after reload until the visitor identifies themselves', async () => {
+    localStorage.setItem(
+      'kodescape_chat_resume_token:site-1',
+      'unidentified-resume-token',
+    );
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) => {
+        if (input.includes('/widget-settings')) {
+          return jsonResponse(
+            widgetSettings({ contactCollectionMode: 'after_first_message' }),
+          );
+        }
+        if (input.includes('/session')) {
+          return jsonResponse({
+            resumeToken: 'unidentified-resume-token',
+            accessToken: 'access-1',
+            visitorId: 'visitor-1',
+            contactId: null,
+            expiresAt: new Date(Date.now() + 900_000).toISOString(),
+          });
+        }
+        if (input.includes('/messages')) {
+          return jsonResponse({
+            items: [
+              {
+                id: 'existing-message',
+                conversationId: 'conversation-1',
+                clientMessageId: 'existing-client-message',
+                direction: 'inbound',
+                senderType: 'visitor',
+                senderName: null,
+                content: 'Existing conversation',
+                attachments: [],
+                replyTo: null,
+                reactions: [],
+                status: 'sent',
+                createdAt: new Date().toISOString(),
+              },
+            ],
+            nextCursor: null,
+          });
+        }
+        return jsonResponse({});
+      }),
+    );
+
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+
+    const shadow = container.firstElementChild!.shadowRoot!;
+    (shadow.querySelector('.kw-launcher') as HTMLButtonElement).click();
+    await flush();
+    await flush();
+
+    expect(
+      (shadow.querySelector('.kw-contact-prompt') as HTMLElement).hidden,
+    ).toBe(false);
 
     widget.destroy();
   });

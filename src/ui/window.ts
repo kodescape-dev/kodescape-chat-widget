@@ -263,6 +263,8 @@ export function createChatWindow(handlers: {
     }
   }
 
+  setView('home');
+
   return {
     el: panel,
     listEl: list,

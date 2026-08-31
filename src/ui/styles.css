@@ -108,7 +108,7 @@ button {
   border-radius: calc(var(--kw-launcher-size, 54px) / 2);
   gap: 0;
   font: inherit;
-  font-size: clamp(14px, calc(var(--kw-launcher-size, 54px) * 0.27), 17px);
+  font-size: clamp(13px, calc(var(--kw-launcher-size, 54px) * 0.24), 15px);
   font-weight: 500;
   white-space: nowrap;
   overflow: hidden;
@@ -786,7 +786,7 @@ button {
   min-height: 24px;
   color: var(--kw-ink-500);
   font-size: 10.5px;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .kw-home > .kw-powered {
@@ -1397,15 +1397,12 @@ button {
 /* ---------- contact prompt ---------- */
 
 .kw-contact-prompt {
-  margin: 8px 12px 10px;
-  padding: 14px;
+  margin: 10px 12px 12px;
+  padding: 16px;
   border: 1px solid var(--kw-border);
-  border-radius: 14px;
-  background: color-mix(
-    in srgb,
-    var(--kw-surface) 94%,
-    var(--kw-primary-color, #2563eb) 6%
-  );
+  border-radius: 16px;
+  background: var(--kw-surface);
+  box-shadow: 0 8px 24px -18px rgba(16, 24, 40, 0.45);
 }
 
 .kw-contact-prompt[hidden] {
@@ -1414,40 +1411,51 @@ button {
 
 .kw-contact-prompt-heading {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 14.5px;
   font-weight: 700;
+  letter-spacing: -0.01em;
   color: var(--kw-ink-900);
 }
 
 .kw-contact-prompt-description {
-  margin: 3px 0 13px;
+  margin: 4px 0 14px;
   color: var(--kw-ink-500);
-  font-size: 11.5px;
-  line-height: 1.45;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.kw-contact-prompt-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px;
 }
 
 .kw-contact-prompt-form .kw-field {
-  margin-bottom: 11px;
+  min-width: 0;
+  margin: 0;
 }
 
 .kw-contact-prompt-form .kw-field label {
-  margin-bottom: 5px;
-  font-size: 11.5px;
+  margin-bottom: 6px;
+  font-size: 12px;
 }
 
 .kw-contact-prompt-form .kw-field-input {
-  min-height: 44px;
+  min-height: 42px;
+  padding: 9px 11px;
   border-color: var(--kw-border);
-  border-radius: 10px;
-  background: var(--kw-surface);
+  border-radius: 9px;
+  background: var(--kw-surface-sunk);
 }
 
 .kw-contact-prompt-actions {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
+  grid-column: 1 / -1;
   gap: 8px;
-  margin-top: 3px;
+  margin-top: 4px;
+  padding-top: 10px;
 }
 
 .kw-contact-prompt-dismiss {
@@ -1458,8 +1466,8 @@ button {
   font-weight: 600;
   color: var(--kw-ink-500);
   cursor: pointer;
-  min-height: 38px;
-  padding: 8px 10px;
+  min-height: 40px;
+  padding: 9px 11px;
   border-radius: 9px;
 }
 
@@ -1472,12 +1480,12 @@ button {
   background: var(--kw-primary-color, #2563eb);
   color: var(--kw-primary-foreground, #fff);
   border: none;
-  min-height: 38px;
-  border-radius: 9px;
+  min-height: 36px;
+  border-radius: 8px;
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
-  padding: 8px 16px;
+  padding: 7px 12px;
   cursor: pointer;
 }
 
@@ -2426,7 +2434,7 @@ button {
 
 .kw-powered {
   gap: 5px;
-  font-size: 11px;
+  font-size: 12px;
 }
 
 .kw-powered-mark,
@@ -2664,18 +2672,7 @@ textarea.kw-field-input {
 
 .kw-composer-toolbar > .kw-powered {
   justify-content: flex-end;
-  min-height: 22px;
-  color: var(--kw-ink-500);
-  font-size: 9px;
-  letter-spacing: 0.035em;
-  text-transform: uppercase;
   white-space: nowrap;
-}
-
-.kw-composer-toolbar > .kw-powered .kw-powered-mark,
-.kw-composer-toolbar > .kw-powered .kw-powered-mark img {
-  width: 13px;
-  height: 13px;
 }
 
 .kw-chat-view > .kw-powered {

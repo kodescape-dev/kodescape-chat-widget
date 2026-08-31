@@ -219,6 +219,7 @@ export function mount(options: MountOptions): MountedWidget {
   let resumeStatusPromise: Promise<void> | null = null;
 
   let currentConversationId: string | null = null;
+  let hasResumableConversation = false;
   let hasSentFirstMessage = false;
   let contactPromptHandled = false;
   let socketStarted = false;
@@ -322,14 +323,15 @@ export function mount(options: MountOptions): MountedWidget {
 
   async function setOpen(next: boolean): Promise<void> {
     isOpen = next;
-    chatWindow.setVisible(isOpen);
     launcher.setOpen(isOpen);
     if (!isOpen) {
+      chatWindow.setVisible(false);
       launcher.focus();
       return;
     }
     if (options.preview) {
       if (!hasEnteredChat) chatWindow.showHome();
+      chatWindow.setVisible(true);
       return;
     }
     const hadUnreadMessages = unreadMessageCount > 0;
@@ -337,17 +339,21 @@ export function mount(options: MountOptions): MountedWidget {
     launcher.setUnread(0);
     if (!hasEnteredChat) {
       await ensureResumeContactStatusResolved();
+      if (resumeContactStatus !== 'no-resume') await loadInitialHistory();
       if (canAutoResume()) {
         await enterChat();
       }
     }
+    if (!isOpen) return;
     if (hasEnteredChat) {
       await loadInitialHistory();
+      if (!isOpen) return;
       positionInitialHistoryAtBottom();
-      chatWindow.focusComposer();
     } else {
       chatWindow.showHome();
     }
+    chatWindow.setVisible(true);
+    if (hasEnteredChat) chatWindow.focusComposer();
     maybeMarkMessagesRead(hadUnreadMessages || hasUnseenAdminMessage());
   }
 
@@ -433,6 +439,7 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   function canAutoResume(): boolean {
+    if (!hasResumableConversation) return false;
     if (resumeContactStatus === 'no-resume') return false;
     if (contactCollectionMode() !== 'before_chat') return true;
     if (!identityCaptureEnabled()) return true;
@@ -668,9 +675,12 @@ export function mount(options: MountOptions): MountedWidget {
         currentConversationId =
           page.items.find((message) => message.conversationId)
             ?.conversationId ?? currentConversationId;
+        hasResumableConversation = page.items.length > 0;
         historyNextCursor = page.nextCursor;
         store.mergeServerMessages(page.items);
         historyLoaded = true;
+        chatWindow.setResumeAvailable(canAutoResume());
+        if (hasResumableConversation) maybeShowContactPrompt();
       } catch {}
       chatWindow.setLoading(false);
 
@@ -740,6 +750,7 @@ export function mount(options: MountOptions): MountedWidget {
       .connect({
         onMessageNew: (event) => {
           currentConversationId = event.conversationId;
+          hasResumableConversation = true;
           if (
             event.message.direction === 'outbound' &&
             (!isOpen || document.visibilityState !== 'visible')
@@ -919,6 +930,7 @@ export function mount(options: MountOptions): MountedWidget {
       );
       currentConversationId =
         serverMessage.conversationId ?? currentConversationId;
+      hasResumableConversation = true;
       store.confirmSent(clientMessageId, serverMessage);
       if (!hasSentFirstMessage) {
         hasSentFirstMessage = true;
