@@ -692,17 +692,22 @@ describe('mount()', () => {
     emojiButton.click();
     expect(emojiButton.getAttribute('aria-expanded')).toBe('true');
     expect(shadow.querySelector('.kw-emoji-search')).not.toBeNull();
+    expect(shadow.querySelectorAll('.kw-emoji-tab').length).toBeGreaterThan(1);
+    expect(
+      shadow.querySelector('.kw-emoji-category-heading')?.textContent,
+    ).toBe('Frequently used');
     expect(
       shadow.querySelectorAll('.kw-emoji-grid button').length,
-    ).toBeGreaterThan(1000);
+    ).toBeGreaterThan(0);
     const firstEmoji = shadow.querySelector(
       '.kw-emoji-grid button',
     ) as HTMLButtonElement;
+    const selectedEmoji = firstEmoji.textContent;
     firstEmoji.click();
     const composerInput = shadow.querySelector(
       '.kw-composer-input',
     ) as HTMLTextAreaElement;
-    expect(composerInput.value).toBe('😀');
+    expect(composerInput.value).toBe(selectedEmoji);
 
     const fileInput = shadow.querySelector(
       '.kw-composer input[type="file"]',

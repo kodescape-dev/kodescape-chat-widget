@@ -19,14 +19,43 @@ type EmojiGroup = {
   order: number;
 };
 
-const EMOJIS = (emojiData as unknown as CompactEmojiRecord[])
+type EmojiTab = {
+  id: 'frequent' | number;
+  label: string;
+  icon: string;
+};
+
+const FREQUENT_STORAGE_KEY = 'kodescape_chat_frequent_emojis';
+const DEFAULT_FREQUENT = ['👍', '😊', '😂', '❤️', '😍', '😭', '🙏', '🎉'];
+const GROUP_ICONS: Record<string, string> = {
+  'smileys-emotion': '😀',
+  'people-body': '👋',
+  'animals-nature': '🐻',
+  'food-drink': '🍔',
+  'travel-places': '🚗',
+  activities: '⚽',
+  objects: '💡',
+  symbols: '♥',
+  flags: '🚩',
+};
+
+const EMOJIS: EmojiRecord[] = (emojiData as unknown as CompactEmojiRecord[])
   .filter((emoji) => typeof emoji.group === 'number' && emoji.group !== 2)
-  .map((emoji) => ({ ...emoji, emoji: emoji.unicode }))
+  .map(({ unicode, ...emoji }) => ({ ...emoji, emoji: unicode }))
   .sort((left, right) => (left.order ?? 0) - (right.order ?? 0));
 
 const GROUPS = (emojiMessages.groups as EmojiGroup[]).filter(
   (group) => group.key !== 'component',
 );
+
+const TABS: EmojiTab[] = [
+  { id: 'frequent', label: 'Frequently used', icon: '🕘' },
+  ...GROUPS.map((group) => ({
+    id: group.order,
+    label: capitalize(group.message),
+    icon: GROUP_ICONS[group.key] ?? '•',
+  })),
+];
 
 export interface EmojiPickerHandle {
   el: HTMLElement;
@@ -50,15 +79,60 @@ export function createEmojiPicker(
   search.placeholder = 'Search emoji…';
   search.setAttribute('aria-label', 'Search emoji');
 
+  const tabs = document.createElement('div');
+  tabs.className = 'kw-emoji-tabs';
+  tabs.setAttribute('role', 'tablist');
+  tabs.setAttribute('aria-label', 'Emoji categories');
+
   const viewport = document.createElement('div');
   viewport.className = 'kw-emoji-viewport';
+  let activeTab: EmojiTab['id'] = 'frequent';
   let renderedQuery: string | null = null;
+
+  const selectEmoji = (emoji: string) => {
+    recordFrequentEmoji(emoji);
+    onEmojiSelect(emoji);
+  };
+
+  const tabButtons = TABS.map((tab) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'kw-emoji-tab';
+    button.textContent = tab.icon;
+    button.title = tab.label;
+    button.setAttribute('role', 'tab');
+    button.setAttribute('aria-label', tab.label);
+    button.addEventListener('click', () => {
+      activeTab = tab.id;
+      renderedQuery = null;
+      render(search.value);
+    });
+    button.addEventListener('keydown', (event) => {
+      if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+      event.preventDefault();
+      const currentIndex = TABS.findIndex((item) => item.id === activeTab);
+      const direction = event.key === 'ArrowRight' ? 1 : -1;
+      const nextIndex = (currentIndex + direction + TABS.length) % TABS.length;
+      tabButtons[nextIndex]?.button.click();
+      tabButtons[nextIndex]?.button.focus();
+    });
+    tabs.appendChild(button);
+    return { tab, button };
+  });
 
   const render = (query: string) => {
     const normalizedQuery = query.trim().toLowerCase();
-    if (renderedQuery === normalizedQuery) return;
-    renderedQuery = normalizedQuery;
+    const renderKey = `${activeTab}:${normalizedQuery}:${readFrequentEmojis().join(',')}`;
+    if (renderedQuery === renderKey) return;
+    renderedQuery = renderKey;
     viewport.replaceChildren();
+
+    for (const item of tabButtons) {
+      const selected = item.tab.id === activeTab;
+      item.button.classList.toggle('kw-emoji-tab--active', selected);
+      item.button.setAttribute('aria-selected', String(selected));
+      item.button.tabIndex = selected ? 0 : -1;
+    }
 
     const matches = searchEmojis(normalizedQuery);
     if (matches.length === 0) {
@@ -70,33 +144,26 @@ export function createEmojiPicker(
     }
 
     if (normalizedQuery) {
-      viewport.appendChild(createEmojiGrid(matches, onEmojiSelect));
+      viewport.append(
+        createCategoryHeading('Search results'),
+        createEmojiGrid(matches, selectEmoji),
+      );
       return;
     }
 
-    const byGroup = new Map<number, EmojiRecord[]>();
-    for (const emoji of matches) {
-      const group = emoji.group as number;
-      const items = byGroup.get(group) ?? [];
-      items.push(emoji);
-      byGroup.set(group, items);
-    }
-
-    for (const group of GROUPS) {
-      const items = byGroup.get(group.order);
-      if (!items?.length) continue;
-      const section = document.createElement('section');
-      section.className = 'kw-emoji-category';
-      const heading = document.createElement('div');
-      heading.className = 'kw-emoji-category-heading';
-      heading.textContent = capitalize(group.message);
-      section.append(heading, createEmojiGrid(items, onEmojiSelect));
-      viewport.appendChild(section);
-    }
+    const activeTabConfig = TABS.find((tab) => tab.id === activeTab) ?? TABS[0];
+    const items =
+      activeTab === 'frequent'
+        ? frequentEmojiRecords()
+        : matches.filter((emoji) => emoji.group === activeTab);
+    viewport.append(
+      createCategoryHeading(activeTabConfig.label),
+      createEmojiGrid(items, selectEmoji),
+    );
   };
 
   search.addEventListener('input', () => render(search.value));
-  picker.append(search, viewport);
+  picker.append(tabs, search, viewport);
 
   return {
     el: picker,
@@ -116,6 +183,35 @@ export function createEmojiPicker(
       return !picker.hidden;
     },
   };
+}
+
+function frequentEmojiRecords(): EmojiRecord[] {
+  const byUnicode = new Map(EMOJIS.map((emoji) => [emoji.emoji, emoji]));
+  return readFrequentEmojis()
+    .map((emoji) => byUnicode.get(emoji))
+    .filter((emoji): emoji is EmojiRecord => Boolean(emoji));
+}
+
+function readFrequentEmojis(): string[] {
+  try {
+    const value = localStorage.getItem(FREQUENT_STORAGE_KEY);
+    if (!value) return DEFAULT_FREQUENT;
+    const parsed = JSON.parse(value) as unknown;
+    if (!Array.isArray(parsed)) return DEFAULT_FREQUENT;
+    return parsed.filter((emoji): emoji is string => typeof emoji === 'string');
+  } catch {
+    return DEFAULT_FREQUENT;
+  }
+}
+
+function recordFrequentEmoji(emoji: string): void {
+  try {
+    const next = [
+      emoji,
+      ...readFrequentEmojis().filter((item) => item !== emoji),
+    ].slice(0, 16);
+    localStorage.setItem(FREQUENT_STORAGE_KEY, JSON.stringify(next));
+  } catch {}
 }
 
 function searchEmojis(query: string): EmojiRecord[] {
@@ -154,6 +250,13 @@ function createEmojiGrid(
   }
   grid.appendChild(fragment);
   return grid;
+}
+
+function createCategoryHeading(label: string): HTMLElement {
+  const heading = document.createElement('div');
+  heading.className = 'kw-emoji-category-heading';
+  heading.textContent = label;
+  return heading;
 }
 
 function capitalize(value: string): string {
