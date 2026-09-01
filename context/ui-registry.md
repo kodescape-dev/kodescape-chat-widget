@@ -196,7 +196,7 @@ a fabricated number is worse than the dot.
 ## Emoji picker (`.kw-emoji-picker`)
 
 File: `src/ui/emoji-picker.ts`, `src/ui/styles.css`
-Last updated: 2026-08-24
+Last updated: 2026-08-31
 
 | Property         | Value                                                                                                                                                                                       |
 | ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -206,6 +206,8 @@ Last updated: 2026-08-24
 | Category heading | sticky, `var(--kw-ink-500)`, `11px / 650` weight                                                                                                                                            |
 | Emoji grid       | `36px` cells, `7` per row, radius `7px`, transparent until hover/focus → `var(--kw-surface-sunk)`                                                                                           |
 | Trigger button   | reuses the existing `.kw-composer-action` icon-button class (same as the attach button) — no new trigger style                                                                              |
+| Category tabs    | one horizontal `role="tablist"` above search: recent clock followed by emoji-backed category tabs; active tab uses the primary underline/tint and the clock icon retains normal category-scale legibility |
+| Frequent items   | default set on first use, then most-recent-first unique choices (maximum 16) persisted under `kodescape_chat_frequent_emojis`                                                                |
 
 **Pattern notes:** the picker is a floating panel, not an inline
 expansion — it overlays above the composer like a native emoji picker,
@@ -216,6 +218,10 @@ this component, matching this repo's convention of every surface tracing
 back to the same token set. Reuses the existing `.kw-composer-action`
 class for its own trigger button rather than a bespoke emoji-button
 style, keeping the attach/emoji/send row visually uniform.
+Search spans all categories and temporarily renders a single Search results
+group. With an empty query, only the active tab's category renders. Left/Right
+Arrow moves focus and selection between tabs; labels remain available through
+`title`, `aria-label`, and `aria-selected` rather than visible category copy.
 
 ---
 

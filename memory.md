@@ -1196,3 +1196,77 @@ None — this was a visual refinement pass, not a bug fix.
 ## Open questions
 
 - None new.
+
+---
+
+# Memory — Preview artifacts, persistent identity prompt, and tabbed emoji picker
+
+Last updated: 2026-09-01 09:30 +06
+
+## What was built
+
+- Commit `f87196d` added `vite.preview.config.ts` and
+  `scripts/verify-build-artifacts.mjs`; production/development builds now compile
+  the widget and isolated Admin preview and fail when required artifacts are
+  missing.
+- Commit `d3a353d` refined the in-chat “Stay in the loop” form and resume flow.
+  The contact prompt is shown again after reload whenever the resumed session has
+  no linked contact; it stops only after name/email identification succeeds.
+  A resumed visitor with `before_chat` collection skips capture only after session
+  refresh confirms a contact. Reloading an existing conversation opens Chat with
+  its history instead of briefly settling on the wrong pre-chat state.
+- Commit `f9a59f3` redesigned `src/ui/emoji-picker.ts` into accessible category
+  tabs plus a Frequently used tab. Choices are unique, most-recent-first, capped
+  at 16, and persisted in localStorage with defaults for first use. Search spans
+  all categories; Left/Right Arrow moves between tabs. Unit/smoke coverage was
+  added, including the recent-clock icon sizing regression.
+- The same recent widget work includes the compact two-line contact fields,
+  smaller Share details action, separator removal, normal-weight Powered by
+  Kodescape branding, and the smaller launcher-label text requested during visual
+  review.
+- Earlier committed rollout work retained here for continuity: the widget host is
+  hidden until settings/branding apply (no default-style flash), the chat origin
+  is allowed by the API, sensitive production env material was removed, and
+  Wrangler configuration exists for the hosted widget.
+- `context/architecture.md` and `context/ui-registry.md` now capture the build
+  artifact contract, reload-until-identified prompt rule, confirmed-contact resume
+  rule, and tabbed/frequent emoji behavior.
+
+## Decisions made
+
+- Contact-prompt dismissal is mount-local, not durable consent. Until identity is
+  successfully linked, a reload may ask again; the backend contact ID is the only
+  durable completion signal.
+- Admin preview remains the same production renderer in isolated preview mode,
+  never a second visual implementation and never an API/session/socket client.
+- Emoji recency is local to the visitor browser and contains emoji values only;
+  it is not synchronized to the backend.
+
+## Problems solved
+
+- The form previously appeared only on first load because local UI state could
+  win over resumed identity state. Resume/contact resolution now decides whether
+  it should reappear.
+- The widget could flash built-in defaults before the settings API returned. The
+  host now reveals only after real settings or the explicit fallback are applied.
+- The previous flat emoji list lacked navigable categories and a useful recent
+  surface; the new tab system preserves global search without rendering every
+  category at once.
+
+## Current state
+
+- All described widget changes are committed; the code working tree was clean
+  before this memory/context save. The save itself modifies only memory/context
+  documentation. No secrets were persisted.
+
+## Next session starts with
+
+- Nothing outstanding in widget code. For live QA, reload an unidentified resumed
+  conversation and verify the form reappears, submit identity and verify it no
+  longer returns, then exercise emoji tabs/recent order in both production widget
+  and Admin preview.
+
+## Open questions
+
+- None new. The older unexplained auto-commit/concurrent-editor observation
+  remains historical context, not an active blocker in the current clean tree.

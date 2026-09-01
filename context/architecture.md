@@ -109,6 +109,14 @@ for immediate UI feedback, and only calls out to `mount.ts`'s handlers
 never shows Home again for the rest of that page load, even if closed
 and reopened.
 
+When `contactCollectionMode` is `after_first_message`, the in-chat contact
+prompt is controlled by server identity, not a local dismissed flag. It is
+shown after the first message whenever the resumed session still has no
+`contactId`; dismissing hides it only for the current mount. Reloading creates a
+new mount and shows it again until a name or email is successfully identified.
+For `before_chat`, a resumed visitor skips lead capture only after the refreshed
+session confirms a linked contact; a bare resume token alone is not enough.
+
 One second after session/socket initialization, the widget preloads the latest
 20 messages into `ChatStore`. If the visitor enters chat first, that same load
 starts immediately; an in-flight or completed preload is reused. Scrolling
@@ -270,6 +278,11 @@ Chat, Pre-chat, Minimized and Desktop/Mobile. It uses deterministic messages
 and returns before API, session, storage, or Socket.IO initialization, so it
 cannot create visitors, contacts, conversations, or messages. Styles remain in
 the same Shadow DOM stylesheet as production.
+
+The production build also runs `vite.preview.config.ts` and
+`scripts/verify-build-artifacts.mjs`, so `dist/widget.js` and the isolated
+preview artifacts are produced and checked together. A successful typecheck or
+main widget bundle alone is not a complete build.
 
 ## Known gap fixed during this checkpoint
 
