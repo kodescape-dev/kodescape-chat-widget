@@ -33,11 +33,23 @@ export interface WidgetDeviceSettings {
 }
 
 export interface WidgetSettings {
+  availability?: {
+    scheduleEnabled: boolean;
+    isOpen: boolean;
+    serverTime?: string;
+    refreshAfterMs?: number;
+  };
   name: string;
   supportDisplayName: string;
   supportSubtitle: string;
+  onlineStatus?: string;
+  offlineStatus?: string;
   supportAvatarUrl: string | null;
   incomingMessageSound: boolean;
+  homeBackgroundEnabled?: boolean;
+  homeBackgroundPreset?:
+    'waves' | 'mountains' | 'dunes' | 'forest' | 'aurora' | 'sunset';
+  homeBackgroundUrl?: string | null;
   primaryColor: string;
   backgroundColor?: string;
   textColor?: string;

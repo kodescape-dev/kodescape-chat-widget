@@ -5,6 +5,7 @@ export interface HomeViewHandle {
   setWelcomeMessage(text: string): void;
   setHeading(text: string): void;
   setStarters(items: string[]): void;
+  setStatus(text: string): void;
   setResumeAvailable(available: boolean): void;
   focusPrimary(): void;
 }
@@ -53,7 +54,14 @@ export function createHomeView(handlers: {
   startIcon.innerHTML = CHAT_ICON;
   const startLabel = document.createElement('span');
   startLabel.className = 'kw-btn-primary-label';
-  startLabel.textContent = 'Start a conversation';
+  const startTitle = document.createElement('span');
+  startTitle.className = 'kw-btn-primary-title';
+  startTitle.textContent = 'Start a conversation';
+  const startStatus = document.createElement('span');
+  startStatus.className = 'kw-btn-primary-status';
+  startStatus.hidden = true;
+  startStatus.setAttribute('role', 'status');
+  startLabel.append(startTitle, startStatus);
   startButton.append(startIcon, startLabel);
   startButton.insertAdjacentHTML('beforeend', ARROW_ICON);
   startButton.addEventListener('click', handlers.onStart);
@@ -105,6 +113,11 @@ export function createHomeView(handlers: {
         button.addEventListener('click', () => handlers.onStarter(text));
         starterList.appendChild(button);
       }
+    },
+    setStatus(text) {
+      startStatus.textContent = text;
+      startStatus.hidden = !text;
+      startButton.classList.toggle('kw-btn-primary--has-status', Boolean(text));
     },
     setResumeAvailable(available) {
       resumeLink.hidden = !available;

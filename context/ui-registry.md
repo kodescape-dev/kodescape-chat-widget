@@ -198,16 +198,16 @@ a fabricated number is worse than the dot.
 File: `src/ui/emoji-picker.ts`, `src/ui/styles.css`
 Last updated: 2026-08-31
 
-| Property         | Value                                                                                                                                                                                       |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Panel            | absolutely positioned above the composer (`bottom: 62px; left: 8px`), `min(300px, 100vw-32px)` wide, `360px` tall (`max-height: calc(100dvh - 120px)`)                                      |
-| Background       | `var(--kw-surface)`, `1px solid var(--kw-border)`, radius `12px`, shadow `0 12px 28px -10px rgba(16,24,40,.28)` — same elevated-panel recipe as the widget's own panel shell, not a new one |
-| Search input     | `36px` tall, `var(--kw-surface)` bg, `1px solid var(--kw-border)`, radius `8px`; focus → border `var(--kw-primary-color)` + `2px` color-mix ring (matches Form field's focus treatment)     |
-| Category heading | sticky, `var(--kw-ink-500)`, `11px / 650` weight                                                                                                                                            |
-| Emoji grid       | `36px` cells, `7` per row, radius `7px`, transparent until hover/focus → `var(--kw-surface-sunk)`                                                                                           |
-| Trigger button   | reuses the existing `.kw-composer-action` icon-button class (same as the attach button) — no new trigger style                                                                              |
+| Property         | Value                                                                                                                                                                                                     |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Panel            | absolutely positioned above the composer (`bottom: 62px; left: 8px`), `min(300px, 100vw-32px)` wide, `360px` tall (`max-height: calc(100dvh - 120px)`)                                                    |
+| Background       | `var(--kw-surface)`, `1px solid var(--kw-border)`, radius `12px`, shadow `0 12px 28px -10px rgba(16,24,40,.28)` — same elevated-panel recipe as the widget's own panel shell, not a new one               |
+| Search input     | `36px` tall, `var(--kw-surface)` bg, `1px solid var(--kw-border)`, radius `8px`; focus → border `var(--kw-primary-color)` + `2px` color-mix ring (matches Form field's focus treatment)                   |
+| Category heading | sticky, `var(--kw-ink-500)`, `11px / 650` weight                                                                                                                                                          |
+| Emoji grid       | `36px` cells, `7` per row, radius `7px`, transparent until hover/focus → `var(--kw-surface-sunk)`                                                                                                         |
+| Trigger button   | reuses the existing `.kw-composer-action` icon-button class (same as the attach button) — no new trigger style                                                                                            |
 | Category tabs    | one horizontal `role="tablist"` above search: recent clock followed by emoji-backed category tabs; active tab uses the primary underline/tint and the clock icon retains normal category-scale legibility |
-| Frequent items   | default set on first use, then most-recent-first unique choices (maximum 16) persisted under `kodescape_chat_frequent_emojis`                                                                |
+| Frequent items   | default set on first use, then most-recent-first unique choices (maximum 16) persisted under `kodescape_chat_frequent_emojis`                                                                             |
 
 **Pattern notes:** the picker is a floating panel, not an inline
 expansion — it overlays above the composer like a native emoji picker,
@@ -312,13 +312,13 @@ Files: `src/ui/launcher.ts`, `src/ui/styles.css`
 File: `src/ui/home.ts`, `src/ui/styles.css`
 Last updated: 2026-08-27
 
-| Icon         | Color       | Background  | Intent keywords                                      |
-| ------------ | ----------- | ----------- | ---------------------------------------------------- |
-| `rocket`     | `#f97316`   | `#fff7ed`   | getting-started, welcome, new, start, begin, intro   |
-| `package`    | `#8b5cf6`   | `#f5f3ff`   | product, service, feature, solution                  |
-| `creditCard` | `#10b981`   | `#ecfdf5`   | pricing, plan, cost, billing, subscription           |
-| `lifeBuoy`   | `#06b6d4`   | `#ecfeff`   | support, help, issue, problem, bug, error, technical |
-| `messages`   | `var(--kw-primary-color)` | `var(--kw-brand-soft)` | team, contact, talk, chat, human, agent, sales |
+| Icon         | Color                     | Background             | Intent keywords                                      |
+| ------------ | ------------------------- | ---------------------- | ---------------------------------------------------- |
+| `rocket`     | `#f97316`                 | `#fff7ed`              | getting-started, welcome, new, start, begin, intro   |
+| `package`    | `#8b5cf6`                 | `#f5f3ff`              | product, service, feature, solution                  |
+| `creditCard` | `#10b981`                 | `#ecfdf5`              | pricing, plan, cost, billing, subscription           |
+| `lifeBuoy`   | `#06b6d4`                 | `#ecfeff`              | support, help, issue, problem, bug, error, technical |
+| `messages`   | `var(--kw-primary-color)` | `var(--kw-brand-soft)` | team, contact, talk, chat, human, agent, sales       |
 
 **Pattern notes:** Categories are intent-based (what the visitor wants), not
 noun-based (what the icon depicts). The fallback chain is
@@ -333,13 +333,13 @@ wrapped in a `36px` circle with the color/bg pair above.
 File: `src/ui/styles.css`
 Last updated: 2026-08-27
 
-| Property         | `.kw-home` (Firefox)                        | `.kw-home` (WebKit)                          | `.kw-list` (Firefox)                         | `.kw-list` (WebKit)                          |
-| ---------------- | ------------------------------------------- | -------------------------------------------- | -------------------------------------------- | -------------------------------------------- |
-| Default thumb    | `transparent`                               | `transparent`                                | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` |
-| Hover thumb      | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same |
-| Thumb hover      | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same |
-| Track            | `transparent`                               | `transparent`                                | `transparent`                                | `transparent`                                |
-| Width            | native                                      | `5px`                                        | native                                       | `5px`                                        |
+| Property      | `.kw-home` (Firefox)                                     | `.kw-home` (WebKit) | `.kw-list` (Firefox)                                     | `.kw-list` (WebKit)                                      |
+| ------------- | -------------------------------------------------------- | ------------------- | -------------------------------------------------------- | -------------------------------------------------------- |
+| Default thumb | `transparent`                                            | `transparent`       | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` |
+| Hover thumb   | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same                | `color-mix(in srgb, var(--kw-ink-400) 14%, transparent)` | same                                                     |
+| Thumb hover   | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same                | `color-mix(in srgb, var(--kw-ink-400) 24%, transparent)` | same                                                     |
+| Track         | `transparent`                                            | `transparent`       | `transparent`                                            | `transparent`                                            |
+| Width         | native                                                   | `5px`               | native                                                   | `5px`                                                    |
 
 **Pattern notes:** `.kw-home` scrollbar is fully transparent at rest (scrollbar
 invisible until the area is hovered), matching the `.kw-list` pattern but
@@ -351,3 +351,45 @@ interaction. `.kw-list` padding is `14px 8px 14px 20px` (asymmetric: tighter
 right edge for the scrollbar gutter). `.kw-home` padding is
 `16px 6px 16px 20px` (same right-edge pattern, slightly more vertical
 breathing room for the greeting/CTA layout).
+
+## Start button status line and preview bubble (2026-10-21)
+
+Files: `src/ui/home.ts`, `src/ui/teaser.ts`, `src/ui/window.ts`, `src/ui/styles.css`
+
+**Start a conversation button with a status line (`.kw-btn-primary--has-status`)**
+
+The Home primary button carries the team's availability as a second line, not
+as a separate row or dot. `.kw-btn-primary-label` is a column: the title
+(`.kw-btn-primary-title`, the usual `14px / 700`) over `.kw-btn-primary-status`
+(`12px / 500`, `opacity: .82`, one line, ellipsis).
+
+| Property | Value                                                                                                          |
+| -------- | -------------------------------------------------------------------------------------------------------------- |
+| Height   | `min-height: 64px`, `12px` vertical padding while a status is shown; the normal `50px` button when it is empty |
+| Text     | the admin's Online status inside operating hours, the Offline status outside them                              |
+| Empty    | no second line, no extra height                                                                                |
+| Not used | no green/amber dot, no offline banner. The header still says "Offline"                                         |
+
+**Pattern notes:** one filled button per screen still holds. The status text
+never changes the button's color or adds a second signal; availability is words
+only. The hard-coded "We're offline. Leave a message…" strip was removed: the
+only offline copy is what the admin writes.
+
+**Preview bubble (`.kw-teaser`)**
+
+Shown when a team member's message arrives while the chat is closed, so a
+visitor who never opened the widget still sees it. It is not shown for visitor
+messages or while the chat is open.
+
+| Property  | Value                                                                                                       |
+| --------- | ----------------------------------------------------------------------------------------------------------- |
+| Position  | absolute, `calc(var(--kw-launcher-size) + 12px)` above the launcher, on the launcher's side                 |
+| Width     | `min(280px, calc(100vw - 32px))`                                                                            |
+| Surface   | `var(--kw-surface)`, `1px solid var(--kw-border)`, `14px` radius, `0 12px 28px -10px var(--kw-soft-shadow)` |
+| Content   | sender name (`12px / 650`, `--kw-ink-500`) over the message (`14px`, three lines max, clamped)              |
+| Controls  | the whole bubble opens the chat; a `26px` ghost cross at the top right dismisses it                         |
+| Motion    | the same `kw-panel-enter` entrance as the panel                                                             |
+| Semantics | `role="status"`, the cross has `aria-label="Dismiss message preview"`                                       |
+
+**Pattern notes:** it previews one message and is replaced by the next one; it
+never stacks. It hides when the chat opens.

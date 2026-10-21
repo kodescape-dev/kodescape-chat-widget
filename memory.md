@@ -1270,3 +1270,62 @@ Last updated: 2026-09-01 09:30 +06
 
 - None new. The older unexplained auto-commit/concurrent-editor observation
   remains historical context, not an active blocker in the current clean tree.
+
+---
+
+# Memory — Now live tracking, preview bubble, Home status line
+
+Last updated: 2026-10-22
+
+## What was built
+
+- `src/core/socket.ts`: `emitVisitorPage(payload)` and `emitHeartbeat()`.
+- `src/mount.ts`: on every socket connect the widget sends `visitor:page`
+  (URL + title, checked every 2 s, only when it changes) and `visitor:heartbeat`
+  every 15 s, with the chat closed. Nothing is sent while disconnected (no burst
+  replay on reconnect). Timers stop in `destroy()`. Preview mode never connects.
+- `src/ui/teaser.ts` + `.kw-teaser` CSS: preview bubble above the launcher when a
+  team message arrives while the chat is closed; click opens chat, cross
+  dismisses, hides when chat opens, never for visitor messages.
+- Home status line: `home.ts` / `window.ts` `setStatusMessages(online, offline)`;
+  the text is the second line of the Start a conversation button
+  (`.kw-btn-primary--has-status`, 64px). No dot, no separate row.
+- Removed the hard-coded "We're offline. Leave a message…" notice.
+- `getWidgetSettings` fetches with `cache: 'no-store'`.
+- Tests: `tests/smoke/mount.test.ts` (tracking, heartbeat, teardown, bubble,
+  status line, no offline notice), `tests/unit/api.test.ts`,
+  `tests/unit/backgrounds.test.ts`. 77 tests pass, typecheck and lint clean.
+- Docs: `context/architecture.md`, `context/ui-registry.md`, `DESIGN.md`.
+
+## Decisions made
+
+- The widget never sends country or IP. The API reads them from Cloudflare
+  headers on the socket handshake, so the browser cannot spoof them.
+- Availability is words only (admin-written Online/Offline status), no colors,
+  no banner. Matches Tidio.
+- Visitors in background tabs still count as live (like Tidio).
+
+## Problems solved
+
+- A site loading `https://chat.kodescape.com/widget.js` in production never
+  reports to a local API. For local testing the web site must load
+  `http://localhost:5173/widget.js` (kodescape-web `NEXT_PUBLIC_CHAT_WIDGET_URL`).
+- Vite dev serves source live; no rebuild needed for the local widget.
+
+## Current state
+
+- All described changes are committed on `main`.
+- Not verified live with real Cloudflare headers; locally country is empty and
+  IP shows `::1`.
+
+## Next session starts with
+
+- Live QA with all three services running: open the site, check the admin Now
+  live list, click Start chat, send from the Inbox, confirm the bubble shows in
+  the visitor tab while the chat is closed.
+
+## Open questions
+
+- Consent: tracking starts as soon as the widget loads. A cookie-consent gate
+  (in the host site) was explicitly postponed.
+- Windows users: flag emoji do not render there; the admin may need flag images.

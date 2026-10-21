@@ -1,5 +1,29 @@
 # Architecture
 
+Header backgrounds offer six bundled SVG presets: waves, mountains, dunes,
+forest, aurora, and sunset. `homeBackgroundPresetUrl` maps the selected preset
+to its bundled SVG data URL. A valid `homeBackgroundUrl` from the API uses the
+uploaded S3/media image instead; a failed or absent custom image falls back
+to the selected preset. Admin clears the custom file ID when choosing a
+preset. These images appear on Home and Pre-chat, while Chat keeps its header.
+
+## Operating hours
+
+The public settings response includes server-computed `availability`:
+`scheduleEnabled`, `isOpen`, `serverTime`, and `refreshAfterMs`. The widget
+uses this result rather than the visitor's clock or timezone. `mount.ts`
+refreshes settings at the next server minute and on page focus/visibility;
+polling stops on destroy and late responses are ignored. Refreshes change
+only availability so a visitor's sound preference and conversation state
+survive. Missing/inactive schedules preserve existing status behavior.
+
+`window.ts` combines schedule availability with socket connectivity when
+rendering the status dot. Outside hours it shows “Offline” and a short
+leave-a-message notice across all open views. Socket reconnects and identity
+updates cannot override the scheduled offline status. The composer, contact
+capture, session creation, and message transports remain available.
+Preview mode accepts availability supplied by Admin and never polls the API.
+
 ## What this repo builds
 
 One artifact: `dist/widget.js`, an IIFE bundle (Vite lib mode, `formats:
@@ -270,6 +294,18 @@ REST responses, socket delivery, reconnect history, and Admin changes converge.
 
 ## Isolated Admin preview
 
+Home backgrounds are configured by `homeBackgroundEnabled`,
+`homeBackgroundPreset` (`waves`, `mountains`, `dunes`), and the API-resolved
+`homeBackgroundUrl`. An optional decorative image covers the Home and Pre-chat
+headers with reduced opacity; it is hidden in Chat. Presets are
+bundled SVG illustrations with no remote asset dependency. Custom image errors
+fall back to the selected preset. Missing settings preserve the original header.
+
+`incomingMessageSound` is an admin policy: disabling it prevents reply sounds,
+hides the three-dot menu, and closes any open menu. When enabled, visitors can
+mute/unmute locally. Preview configuration applies the same background and
+sound-policy setters as production.
+
 `preview.html` is the only document Admin embeds. `src/preview-entry.ts`
 mounts the same `mount()` renderer with `{ preview: true }`; `src/dev-entry.ts`
 keeps the ordinary root route's developer harness separate. Preview mode
@@ -296,3 +332,20 @@ before a session exists — the admin embed snippet only ever carried
 already resolved into `req.chatContext` by `ChatOriginMiddleware`) so this
 repo has something real to call. Covered by a new case in
 `kodescape-cms-api/tests/e2e/communications-public-chat.spec.ts`.
+
+## Now live tracking and the preview bubble (2026-10-21)
+
+- Presence: the visitor socket connects at mount, with the chat closed. Once
+  connected the widget sends `visitor:page` with the current URL and title (on
+  connect and whenever the URL changes, checked every 2 s) and
+  `visitor:heartbeat` every 15 s. Nothing is emitted while the socket is
+  disconnected, so a reconnect never replays a burst of heartbeats. Timers stop
+  on `destroy()`. Preview mode never connects, so it never tracks.
+- Country and IP are not sent by the widget. The API reads them from
+  Cloudflare headers on the socket handshake.
+- `ui/teaser.ts`: when a team member's message arrives while the chat is
+  closed, a small bubble (sender name plus message, 3 lines max) shows above
+  the launcher. Clicking it opens the chat; the cross dismisses it. It also
+  hides when the chat opens. Visitor messages never show it.
+- Home status line: the Start a conversation button shows the online or
+  offline status text as a second line (`setStatusMessages`).

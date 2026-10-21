@@ -1,5 +1,6 @@
 import { io, type Socket } from 'socket.io-client';
 import type {
+  ContextPayload,
   MessageFailedEvent,
   MessageNewEvent,
   MessageReactionsEvent,
@@ -85,6 +86,14 @@ export class ChatSocket {
 
   emitDraftUpdate(text: string): void {
     this.socket?.emit('visitor:draft:update', { text });
+  }
+
+  emitVisitorPage(payload: ContextPayload): void {
+    this.socket?.emit('visitor:page', payload);
+  }
+
+  emitHeartbeat(): void {
+    this.socket?.emit('visitor:heartbeat');
   }
 
   emitDraftClear(): void {

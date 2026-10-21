@@ -9,6 +9,7 @@ import { createContactPrompt } from './contact-prompt';
 import type { ContactPromptConfig, ContactPromptData } from './contact-prompt';
 import { renderLoadingSkeleton, clearLoadingSkeleton } from './message-list';
 import { createBrandMark, setBrandMarkImage } from './branding';
+import { homeBackgroundPresetUrl } from './backgrounds';
 
 export interface ChatWindowHandle {
   el: HTMLElement;
@@ -16,6 +17,8 @@ export interface ChatWindowHandle {
   setVisible(visible: boolean): void;
   setLoading(loading: boolean): void;
   setConnectionStatus(connected: boolean): void;
+  setAvailability(isOpen: boolean): void;
+  setStatusMessages(online: string, offline: string): void;
   setName(name: string): void;
   setWelcomeMessage(text: string): void;
   setHomeHeading(text: string): void;
@@ -29,6 +32,12 @@ export interface ChatWindowHandle {
   setReply(reply: MessageReply | null): void;
   setResumeAvailable(available: boolean): void;
   setNotificationsEnabled(enabled: boolean): void;
+  setSoundsAllowed(allowed: boolean): void;
+  setHomeBackground(
+    enabled: boolean,
+    preset?: string,
+    url?: string | null,
+  ): void;
   showHome(): void;
   showLeadCapture(options?: { focus?: boolean }): void;
   configureLeadCapture(config: LeadCaptureConfig): void;
@@ -81,6 +90,12 @@ export function createChatWindow(handlers: {
   const header = document.createElement('div');
   header.className = 'kw-header';
 
+  const backgroundImage = document.createElement('img');
+  backgroundImage.className = 'kw-home-background';
+  backgroundImage.alt = '';
+  backgroundImage.hidden = true;
+  header.append(backgroundImage);
+
   const headerMain = document.createElement('div');
   headerMain.className = 'kw-header-main';
 
@@ -104,6 +119,22 @@ export function createChatWindow(handlers: {
   statusText.className = 'kw-status-text';
   statusText.textContent = 'Connecting…';
   statusDot.classList.add('kw-status-dot--offline');
+
+  let connected = false;
+  let isOpen = true;
+  let supportSubtitle = 'Connecting…';
+  let onlineStatus = '';
+  let offlineStatus = '';
+  function renderAvailability(): void {
+    statusDot.classList.toggle('kw-status-dot--offline', !connected || !isOpen);
+    statusText.textContent = isOpen ? supportSubtitle : 'Offline';
+    statusRow.title = !isOpen
+      ? 'Outside operating hours'
+      : connected
+        ? 'Connected'
+        : 'Reconnecting';
+    home.setStatus(isOpen ? onlineStatus : offlineStatus);
+  }
 
   statusRow.append(statusDot, statusText);
   headerText.append(title, statusRow);
@@ -132,12 +163,13 @@ export function createChatWindow(handlers: {
   headerMenu.append(notificationsButton);
 
   let notificationsEnabled = true;
+  let soundsAllowed = true;
   let menuOpen = false;
 
   function setMenuOpen(open: boolean): void {
-    menuOpen = open;
-    headerMenu.hidden = !open;
-    menuButton.setAttribute('aria-expanded', String(open));
+    menuOpen = open && soundsAllowed;
+    headerMenu.hidden = !menuOpen;
+    menuButton.setAttribute('aria-expanded', String(menuOpen));
   }
 
   function updateNotificationsLabel(): void {
@@ -150,6 +182,7 @@ export function createChatWindow(handlers: {
 
   menuButton.addEventListener('click', () => setMenuOpen(!menuOpen));
   notificationsButton.addEventListener('click', () => {
+    if (!soundsAllowed) return;
     notificationsEnabled = !notificationsEnabled;
     updateNotificationsLabel();
     handlers.onNotificationsChange(notificationsEnabled);
@@ -279,9 +312,18 @@ export function createChatWindow(handlers: {
         clearLoadingSkeleton(list);
       }
     },
-    setConnectionStatus(connected) {
-      statusDot.classList.toggle('kw-status-dot--offline', !connected);
-      statusRow.title = connected ? 'Connected' : 'Reconnecting';
+    setConnectionStatus(next) {
+      connected = next;
+      renderAvailability();
+    },
+    setAvailability(next) {
+      isOpen = next;
+      renderAvailability();
+    },
+    setStatusMessages(online, offline) {
+      onlineStatus = online.trim();
+      offlineStatus = offline.trim();
+      renderAvailability();
     },
     setName(name) {
       title.textContent = name;
@@ -297,7 +339,8 @@ export function createChatWindow(handlers: {
     },
     setSupportIdentity(name, subtitle, avatarUrl) {
       title.textContent = name || 'Chat with us';
-      statusText.textContent = subtitle || 'Connecting…';
+      supportSubtitle = subtitle || 'Connecting…';
+      renderAvailability();
       setBrandMarkImage(headerBrand, avatarUrl);
       typingIndicator.setSupportAvatar(avatarUrl);
       presenceAvatar.childNodes[0]?.remove();
@@ -325,8 +368,39 @@ export function createChatWindow(handlers: {
       home.setResumeAvailable(available);
     },
     setNotificationsEnabled(enabled) {
-      notificationsEnabled = enabled;
+      notificationsEnabled = soundsAllowed && enabled;
       updateNotificationsLabel();
+    },
+    setSoundsAllowed(allowed) {
+      soundsAllowed = allowed;
+      menuButton.hidden = !allowed;
+      if (!allowed) {
+        setMenuOpen(false);
+        notificationsEnabled = false;
+        updateNotificationsLabel();
+      }
+    },
+    setHomeBackground(enabled, preset, url) {
+      backgroundImage.hidden = !enabled;
+      backgroundImage.onerror = null;
+      if (!enabled) {
+        backgroundImage.removeAttribute('src');
+        return;
+      }
+      const fallback = homeBackgroundPresetUrl(preset);
+      let customUrl: string | null = null;
+      try {
+        const parsed = new URL(url ?? '');
+        if (['https:', 'http:'].includes(parsed.protocol))
+          customUrl = parsed.href;
+      } catch {
+        customUrl = null;
+      }
+      backgroundImage.onerror = () => {
+        backgroundImage.onerror = null;
+        backgroundImage.src = fallback;
+      };
+      backgroundImage.src = customUrl ?? fallback;
     },
     showHome() {
       setView('home');

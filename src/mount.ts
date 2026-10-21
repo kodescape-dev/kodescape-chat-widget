@@ -14,6 +14,7 @@ import type { ComposerSubmission } from './ui/composer';
 import { buildContextPayload, contextDedupeKey } from './core/context';
 import { findWidgetScript } from './script-element';
 import { createLauncher } from './ui/launcher';
+import { createTeaser } from './ui/teaser';
 import { createChatWindow } from './ui/window';
 import { renderMessages } from './ui/message-list';
 import type { LeadCaptureConfig, LeadCaptureData } from './ui/lead-capture';
@@ -52,6 +53,7 @@ const HISTORY_PRELOAD_DELAY_MS = 1000;
 const DRAFT_UPDATE_DELAY_MS = 250;
 const REMOTE_TYPING_TIMEOUT_MS = 6000;
 const CONTEXT_POLL_INTERVAL_MS = 2000;
+const VISITOR_HEARTBEAT_INTERVAL_MS = 15000;
 const DEFAULT_LEAD_SETTINGS: Pick<
   WidgetSettings,
   | 'askName'
@@ -211,6 +213,9 @@ export function mount(options: MountOptions): MountedWidget {
   let isOpen = false;
   let hasEnteredChat = false;
   let currentSettings: WidgetSettings | null = null;
+  let destroyed = false;
+  let settingsTimer: ReturnType<typeof setTimeout> | undefined;
+  let settingsRefreshInFlight = false;
   let soundNotificationsEnabled = DEFAULT_WIDGET_SETTINGS.incomingMessageSound;
   let previewDevice: PreviewDevice = 'desktop';
   let resumeContactStatus:
@@ -245,8 +250,13 @@ export function mount(options: MountOptions): MountedWidget {
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
   let lastPostedContextKey: string | null = null;
   let contextPollTimer: ReturnType<typeof setInterval> | null = null;
+  let visitorSocketConnected = false;
+  let lastTrackedPageKey: string | null = null;
+  let pageWatchTimer: ReturnType<typeof setInterval> | null = null;
+  let heartbeatTimer: ReturnType<typeof setInterval> | null = null;
 
   const launcher = createLauncher(() => void setOpen(!isOpen));
+  const teaser = createTeaser(() => void setOpen(true));
   const chatWindow = createChatWindow({
     onClose: () => void setOpen(false),
     onSend: handleSend,
@@ -259,11 +269,12 @@ export function mount(options: MountOptions): MountedWidget {
     onContactPromptSubmit: handleContactPromptSubmit,
     onContactPromptDismiss: handleContactPromptDismiss,
     onNotificationsChange: (enabled) => {
-      soundNotificationsEnabled = enabled;
+      soundNotificationsEnabled =
+        currentSettings?.incomingMessageSound === true && enabled;
     },
   });
   chatWindow.setResumeAvailable(canAutoResume());
-  root.append(chatWindow.el, launcher.el);
+  root.append(chatWindow.el, teaser.el, launcher.el);
   chatWindow.listEl.addEventListener('scroll', handleMessageListScroll);
 
   (options.target ?? document.body).appendChild(host);
@@ -295,6 +306,7 @@ export function mount(options: MountOptions): MountedWidget {
 
   document.addEventListener('visibilitychange', handleVisibilityChange);
   window.addEventListener('resize', handleViewportChange);
+  window.addEventListener('focus', refreshAvailability);
 
   const handlePreviewMessage = (event: MessageEvent<unknown>) => {
     if (event.source !== window.parent) return;
@@ -314,16 +326,14 @@ export function mount(options: MountOptions): MountedWidget {
     });
     window.parent.postMessage({ type: 'kodescape-widget-preview:ready' }, '*');
   } else {
-    void api
-      .getWidgetSettings(options.siteId)
-      .then(applyBranding)
-      .catch(() => applyBranding(DEFAULT_WIDGET_SETTINGS));
+    refreshAvailability();
     connectVisitorSocket();
   }
 
   async function setOpen(next: boolean): Promise<void> {
     isOpen = next;
     launcher.setOpen(isOpen);
+    if (isOpen) teaser.hide();
     if (!isOpen) {
       chatWindow.setVisible(false);
       launcher.focus();
@@ -359,6 +369,7 @@ export function mount(options: MountOptions): MountedWidget {
 
   function handleVisibilityChange(): void {
     if (options.preview) return;
+    if (document.visibilityState === 'visible') refreshAvailability();
     if (document.visibilityState === 'visible' && isOpen) {
       const hadUnreadMessages = unreadMessageCount > 0;
       unreadMessageCount = 0;
@@ -581,6 +592,37 @@ export function mount(options: MountOptions): MountedWidget {
     } catch {}
   }
 
+  // "Now live": tell the team which page this visitor is on, and keep telling
+  // them we are still here, whether or not the chat is open.
+  function trackVisitorPage(): void {
+    if (!visitorSocketConnected) return;
+    const payload = currentContextPayload();
+    const key = contextDedupeKey(payload);
+    if (key === lastTrackedPageKey) return;
+    lastTrackedPageKey = key;
+    socket.emitVisitorPage(payload);
+  }
+
+  function startVisitorTracking(): void {
+    lastTrackedPageKey = null;
+    trackVisitorPage();
+    if (!pageWatchTimer) {
+      pageWatchTimer = setInterval(trackVisitorPage, CONTEXT_POLL_INTERVAL_MS);
+    }
+    if (!heartbeatTimer) {
+      heartbeatTimer = setInterval(() => {
+        if (visitorSocketConnected) socket.emitHeartbeat();
+      }, VISITOR_HEARTBEAT_INTERVAL_MS);
+    }
+  }
+
+  function stopVisitorTracking(): void {
+    if (pageWatchTimer) clearInterval(pageWatchTimer);
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
+    pageWatchTimer = null;
+    heartbeatTimer = null;
+  }
+
   function startContextWatch(): void {
     if (contextPollTimer) return;
     contextPollTimer = setInterval(() => {
@@ -758,9 +800,13 @@ export function mount(options: MountOptions): MountedWidget {
             unreadMessageCount += 1;
           }
           store.receiveRealtime(event.message);
+          if (event.message.direction === 'outbound' && !isOpen) {
+            teaser.show(event.message.senderName, event.message.content);
+          }
           if (
             event.message.direction === 'outbound' &&
-            soundNotificationsEnabled
+            soundNotificationsEnabled &&
+            currentSettings?.incomingMessageSound === true
           ) {
             playIncomingSound();
           }
@@ -770,7 +816,9 @@ export function mount(options: MountOptions): MountedWidget {
         },
         onConnectionChange: (connected) => {
           store.setConnected(connected);
-          if (!connected) handleRemoteTypingStop({ conversationId: '' });
+          visitorSocketConnected = connected;
+          if (connected) startVisitorTracking();
+          else handleRemoteTypingStop({ conversationId: '' });
         },
         onReconnectBackfillNeeded: () => void backfillAfterReconnect(),
         onMessageStatus: (event) => store.applyDelivered(event.messageId),
@@ -951,8 +999,22 @@ export function mount(options: MountOptions): MountedWidget {
       deviceSettings: resolveDeviceSettings(settings),
     };
     currentSettings = normalized;
+    chatWindow.setAvailability(
+      !normalized.availability?.scheduleEnabled ||
+        normalized.availability.isOpen,
+    );
+    chatWindow.setStatusMessages(
+      normalized.onlineStatus ?? '',
+      normalized.offlineStatus ?? '',
+    );
     soundNotificationsEnabled = normalized.incomingMessageSound;
+    chatWindow.setSoundsAllowed(normalized.incomingMessageSound !== false);
     chatWindow.setNotificationsEnabled(soundNotificationsEnabled);
+    chatWindow.setHomeBackground(
+      normalized.homeBackgroundEnabled ?? false,
+      normalized.homeBackgroundPreset,
+      normalized.homeBackgroundUrl,
+    );
     chatWindow.configureLeadCapture(leadCaptureConfig());
     chatWindow.setResumeAvailable(canAutoResume());
     host.style.setProperty('--kw-primary-color', normalized.primaryColor);
@@ -973,6 +1035,37 @@ export function mount(options: MountOptions): MountedWidget {
     chatWindow.setStarters(normalized.conversationStarters);
     chatWindow.setComposerPlaceholder(normalized.composerPlaceholder);
     applyDeviceLayout(normalized);
+  }
+
+  function refreshAvailability(): void {
+    if (options.preview || destroyed || settingsRefreshInFlight) return;
+    clearTimeout(settingsTimer);
+    settingsRefreshInFlight = true;
+    let delay = 60000;
+    void api
+      .getWidgetSettings(options.siteId)
+      .then((settings) => {
+        if (destroyed) return;
+        if (!currentSettings) applyBranding(settings);
+        else {
+          currentSettings.availability = settings.availability;
+          chatWindow.setAvailability(
+            !settings.availability?.scheduleEnabled ||
+              settings.availability.isOpen,
+          );
+        }
+        const refreshAfter = settings.availability?.refreshAfterMs;
+        if (typeof refreshAfter === 'number' && Number.isFinite(refreshAfter))
+          delay = Math.max(1000, Math.min(60000, refreshAfter));
+      })
+      .catch(() => {
+        if (!destroyed && !currentSettings)
+          applyBranding(DEFAULT_WIDGET_SETTINGS);
+      })
+      .finally(() => {
+        settingsRefreshInFlight = false;
+        if (!destroyed) settingsTimer = setTimeout(refreshAvailability, delay);
+      });
   }
 
   function applyPreview(message: PreviewConfigMessage): void {
@@ -1049,13 +1142,17 @@ export function mount(options: MountOptions): MountedWidget {
 
   return {
     destroy() {
+      destroyed = true;
+      clearTimeout(settingsTimer);
       unsubscribe();
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('resize', handleViewportChange);
+      window.removeEventListener('focus', refreshAvailability);
       window.removeEventListener('message', handlePreviewMessage);
       chatWindow.listEl.removeEventListener('scroll', handleMessageListScroll);
       if (historyPreloadTimer) clearTimeout(historyPreloadTimer);
       if (contextPollTimer) clearInterval(contextPollTimer);
+      stopVisitorTracking();
       clearVisitorDraft();
       remoteTypingTimers.forEach(clearTimeout);
       remoteTypingTimers.clear();

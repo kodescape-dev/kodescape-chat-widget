@@ -265,6 +265,133 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('reports the current page and heartbeats for Now live while the chat is closed', async () => {
+    vi.useFakeTimers();
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const connectHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'connect',
+    )?.[1] as (() => void) | undefined;
+    fakeSocket.emit.mockClear();
+
+    connectHandler?.();
+
+    const pageCalls = () =>
+      fakeSocket.emit.mock.calls.filter(([event]) => event === 'visitor:page');
+    expect(pageCalls()).toHaveLength(1);
+    expect(pageCalls()[0][1]).toMatchObject({
+      currentUrl: location.href,
+      deviceType: 'desktop',
+    });
+    expect(
+      fakeSocket.emit.mock.calls.filter(
+        ([event]) => event === 'visitor:heartbeat',
+      ),
+    ).toHaveLength(0);
+
+    await vi.advanceTimersByTimeAsync(15_000);
+    expect(
+      fakeSocket.emit.mock.calls.filter(
+        ([event]) => event === 'visitor:heartbeat',
+      ),
+    ).toHaveLength(1);
+    // Same page: no repeat page events, only heartbeats.
+    expect(pageCalls()).toHaveLength(1);
+
+    widget.destroy();
+    fakeSocket.emit.mockClear();
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(fakeSocket.emit).not.toHaveBeenCalled();
+  });
+
+  it('shows a preview bubble when the team writes to a visitor with the chat closed, and opens the chat from it', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+    await flush();
+    const messageNewHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'message:new',
+    )?.[1] as ((event: unknown) => void) | undefined;
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const teaser = shadow.querySelector('.kw-teaser') as HTMLElement;
+    expect(teaser.hidden).toBe(true);
+
+    messageNewHandler?.({
+      conversationId: 'conv-1',
+      message: {
+        id: 'message-1',
+        clientMessageId: 'admin-1',
+        direction: 'outbound',
+        senderType: 'human',
+        senderName: 'Rabbi',
+        content: 'Hi! Need a hand finding anything?',
+        createdAt: new Date().toISOString(),
+        status: 'sent',
+      },
+    });
+
+    expect(teaser.hidden).toBe(false);
+    expect(teaser.textContent).toContain('Rabbi');
+    expect(teaser.textContent).toContain('Need a hand finding anything?');
+
+    (shadow.querySelector('.kw-teaser-open') as HTMLButtonElement).click();
+    await flush();
+    expect(teaser.hidden).toBe(true);
+    expect((shadow.querySelector('.kw-panel') as HTMLElement).hidden).toBe(
+      false,
+    );
+
+    widget.destroy();
+  });
+
+  it('does not show the preview bubble for visitor messages or while the chat is open', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+    await flush();
+    const messageNewHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'message:new',
+    )?.[1] as ((event: unknown) => void) | undefined;
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const teaser = shadow.querySelector('.kw-teaser') as HTMLElement;
+    const event = (direction: string, id: string) => ({
+      conversationId: 'conv-1',
+      message: {
+        id,
+        clientMessageId: `c-${id}`,
+        direction,
+        senderType: direction === 'outbound' ? 'human' : 'visitor',
+        senderName: null,
+        content: 'Hello',
+        createdAt: new Date().toISOString(),
+        status: 'sent',
+      },
+    });
+
+    messageNewHandler?.(event('inbound', 'm1'));
+    expect(teaser.hidden).toBe(true);
+
+    (shadow.querySelector('.kw-launcher') as HTMLButtonElement).click();
+    await flush();
+    messageNewHandler?.(event('outbound', 'm2'));
+    expect(teaser.hidden).toBe(true);
+
+    widget.destroy();
+  });
+
   it('preloads 20 messages after startup, paginates near the top, and does not refetch on open', async () => {
     vi.useFakeTimers();
     const historyUrls: string[] = [];
@@ -738,6 +865,47 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('shows the online or offline status under Start a conversation on Home', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'preview',
+      apiBaseUrl: 'http://should-not-be-called.test',
+      target: container,
+      preview: true,
+    });
+    const shadow = (container.firstElementChild as HTMLElement).shadowRoot!;
+    const configure = (isOpen: boolean) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window.parent,
+          data: {
+            type: 'kodescape-widget-preview:configure',
+            settings: widgetSettings({
+              onlineStatus: 'Replying now',
+              offlineStatus: 'Back at 9am',
+              availability: { scheduleEnabled: true, isOpen },
+            }),
+            state: 'home',
+            device: 'desktop',
+          },
+        }),
+      );
+
+    configure(true);
+    const button = shadow.querySelector('.kw-home .kw-btn-primary');
+    const status = button?.querySelector('.kw-btn-primary-status');
+    expect(button?.querySelector('.kw-btn-primary-title')?.textContent).toBe(
+      'Start a conversation',
+    );
+    expect(status?.textContent).toBe('Replying now');
+    expect((status as HTMLElement).hidden).toBe(false);
+    expect(shadow.querySelector('.kw-home-status')).toBeNull();
+
+    configure(false);
+    expect(status?.textContent).toBe('Back at 9am');
+    widget.destroy();
+  });
+
   it('updates pre-chat copy in preview without moving focus into the form', async () => {
     const { mount } = await import('../../src/mount');
     const widget = mount({
@@ -890,6 +1058,174 @@ describe('mount()', () => {
       avatarUrl,
     );
 
+    widget.destroy();
+  });
+
+  it('applies custom Home backgrounds and hides sound controls when admin disables sounds', async () => {
+    const backgroundUrl = 'https://cdn.example.com/background.webp';
+    const defaultFetch = globalThis.fetch;
+    const audioContext = vi.fn();
+    vi.stubGlobal('AudioContext', audioContext);
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: string) =>
+        input.includes('/widget-settings')
+          ? jsonResponse(
+              widgetSettings({
+                homeBackgroundEnabled: true,
+                homeBackgroundPreset: 'mountains',
+                homeBackgroundUrl: backgroundUrl,
+                incomingMessageSound: false,
+              }),
+            )
+          : defaultFetch(input),
+      ),
+    );
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await flush();
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const image = shadow.querySelector<HTMLImageElement>(
+      '.kw-home-background',
+    )!;
+    expect(image.hidden).toBe(false);
+    expect(image.src).toBe(backgroundUrl);
+    image.dispatchEvent(new Event('error'));
+    expect(image.src).toContain('data:image/svg+xml,');
+    const menu = shadow.querySelector<HTMLButtonElement>('.kw-menu-trigger')!;
+    expect(menu.hidden).toBe(true);
+    menu.click();
+    expect(shadow.querySelector<HTMLElement>('.kw-header-menu')!.hidden).toBe(
+      true,
+    );
+    shadow.querySelector<HTMLButtonElement>('.kw-header-menu-item')!.click();
+    const onMessage = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'message:new',
+    )?.[1] as ((event: unknown) => void) | undefined;
+    expect(onMessage).toBeTypeOf('function');
+    onMessage?.({
+      conversationId: 'conv-1',
+      message: {
+        id: 'reply-silent',
+        clientMessageId: 'reply-silent',
+        direction: 'outbound',
+        senderType: 'human',
+        senderName: 'Support',
+        content: 'Hello',
+        createdAt: new Date().toISOString(),
+        status: 'sent',
+      },
+    });
+    expect(audioContext).not.toHaveBeenCalled();
+    widget.destroy();
+  });
+
+  it('renders six distinct SVG presets and switches between uploaded URLs and presets', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'preview',
+      target: container,
+      preview: true,
+    });
+    const image =
+      container.firstElementChild!.shadowRoot!.querySelector<HTMLImageElement>(
+        '.kw-home-background',
+      )!;
+    const configure = (preset: string, url: string | null) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window.parent,
+          data: {
+            type: 'kodescape-widget-preview:configure',
+            state: 'home',
+            device: 'desktop',
+            settings: widgetSettings({
+              homeBackgroundEnabled: true,
+              homeBackgroundPreset: preset,
+              homeBackgroundUrl: url,
+            }),
+          },
+        }),
+      );
+    const sources = new Set<string>();
+    for (const preset of [
+      'waves',
+      'mountains',
+      'dunes',
+      'forest',
+      'aurora',
+      'sunset',
+    ]) {
+      configure(preset, null);
+      expect(image.hidden).toBe(false);
+      expect(image.src).toContain('data:image/svg+xml,');
+      sources.add(image.src);
+    }
+    expect(sources.size).toBe(6);
+    const sunset = image.src;
+    configure('sunset', 'https://media.example.com/uploads/custom.webp');
+    expect(image.src).toBe('https://media.example.com/uploads/custom.webp');
+    configure('sunset', null);
+    expect(image.src).toBe(sunset);
+    widget.destroy();
+  });
+
+  it('updates image and sound controls in the isolated live preview', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'preview',
+      target: container,
+      preview: true,
+    });
+    const shadow = container.firstElementChild!.shadowRoot!;
+    const configure = (settings: Record<string, unknown>) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window.parent,
+          data: {
+            type: 'kodescape-widget-preview:configure',
+            state: 'home',
+            device: 'desktop',
+            settings: widgetSettings(settings),
+          },
+        }),
+      );
+    configure({
+      homeBackgroundEnabled: true,
+      homeBackgroundPreset: 'dunes',
+      incomingMessageSound: true,
+    });
+    const image = shadow.querySelector<HTMLImageElement>(
+      '.kw-home-background',
+    )!;
+    expect(image.hidden).toBe(false);
+    expect(image.src).toContain('data:image/svg+xml,');
+    const menu = shadow.querySelector<HTMLButtonElement>('.kw-menu-trigger')!;
+    expect(menu.hidden).toBe(false);
+    menu.click();
+    expect(shadow.querySelector<HTMLElement>('.kw-header-menu')!.hidden).toBe(
+      false,
+    );
+    configure({ homeBackgroundEnabled: false, incomingMessageSound: false });
+    expect(image.hidden).toBe(true);
+    expect(image.hasAttribute('src')).toBe(false);
+    expect(menu.hidden).toBe(true);
+    expect(shadow.querySelector<HTMLElement>('.kw-header-menu')!.hidden).toBe(
+      true,
+    );
+    configure({ incomingMessageSound: true });
+    expect(menu.hidden).toBe(false);
+    menu.click();
+    const notifications = shadow.querySelector<HTMLButtonElement>(
+      '.kw-header-menu-item',
+    )!;
+    expect(notifications.textContent).toContain('Turn off notifications');
+    notifications.click();
+    expect(notifications.textContent).toContain('Turn on notifications');
     widget.destroy();
   });
 
@@ -1142,6 +1478,87 @@ describe('mount()', () => {
     expect(sendCall![1]).toMatchObject({ content: 'I need help' });
 
     widget.destroy();
+  });
+
+  it('shows offline hours, permits messages, refreshes availability and cleans up polling', async () => {
+    vi.useFakeTimers();
+    let isOpen = false;
+    const originalFetch = globalThis.fetch;
+    const fetchMock = vi.fn((input: string, init?: RequestInit) =>
+      input.includes('/widget-settings')
+        ? Promise.resolve(
+            jsonResponse(
+              widgetSettings({
+                contactCollectionMode: 'disabled',
+                availability: {
+                  scheduleEnabled: true,
+                  isOpen,
+                  refreshAfterMs: 1000,
+                },
+              }),
+            ),
+          )
+        : originalFetch(input, init),
+    );
+    vi.stubGlobal('fetch', fetchMock);
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'site-1',
+      apiBaseUrl: 'http://localhost:5001',
+      target: container,
+    });
+    await vi.advanceTimersByTimeAsync(0);
+    const shadow = (container.firstElementChild as HTMLElement).shadowRoot!;
+    expect(shadow.querySelector('.kw-status-text')?.textContent).toBe(
+      'Offline',
+    );
+    expect(shadow.querySelector('.kw-offline-notice')).toBeNull();
+    const connectHandler = fakeSocket.on.mock.calls.find(
+      ([event]) => event === 'connect',
+    )?.[1] as (() => void) | undefined;
+    connectHandler?.();
+    expect(shadow.querySelector('.kw-status-text')?.textContent).toBe(
+      'Offline',
+    );
+    (shadow.querySelector('.kw-launcher') as HTMLButtonElement).click();
+    await vi.advanceTimersByTimeAsync(0);
+    (
+      shadow.querySelector('.kw-home .kw-btn-primary') as HTMLButtonElement
+    ).click();
+    await vi.advanceTimersByTimeAsync(0);
+    const composer = shadow.querySelector(
+      '.kw-composer-input',
+    ) as HTMLTextAreaElement;
+    composer.value = 'Please help when you reopen';
+    composer.dispatchEvent(new Event('input', { bubbles: true }));
+    composer.dispatchEvent(
+      new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+    );
+    await vi.advanceTimersByTimeAsync(0);
+    expect(
+      fakeSocket.emit.mock.calls.some(
+        ([event, payload]) =>
+          event === 'message:send' &&
+          (payload as MessageSendPayload).content ===
+            'Please help when you reopen',
+      ),
+    ).toBe(true);
+    isOpen = true;
+    await vi.advanceTimersByTimeAsync(1000);
+    expect(shadow.querySelector('.kw-status-text')?.textContent).toBe(
+      'Replies in a few minutes',
+    );
+    isOpen = false;
+    window.dispatchEvent(new Event('focus'));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(shadow.querySelector('.kw-status-text')?.textContent).toBe(
+      'Offline',
+    );
+    widget.destroy();
+    const count = fetchMock.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(120000);
+    window.dispatchEvent(new Event('focus'));
+    expect(fetchMock).toHaveBeenCalledTimes(count);
   });
 
   it('removes the host element on destroy', async () => {

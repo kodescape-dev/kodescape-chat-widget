@@ -201,6 +201,13 @@ Borders are hairline (`1px solid var(--kw-border)`) and used sparingly: outbound
 - **Hover:** `filter: brightness(0.94)` — a darkening filter rather than a second hardcoded color, so it stays correct under any org's `--kw-primary-color`.
 - **Secondary (outline card):** white fill, `1px` border, `12px` radius — used for a substantial secondary choice ("Continue previous conversation"), not a minor action.
 - **Ghost (icon/text, no fill or border):** used for low-emphasis navigation only — back, close. Hover state is a `var(--kw-surface-sunk)` background wash, nothing more.
+- **Primary with a status line (Home):** the primary button grows to `64px` and carries the team's availability as a second, quieter line (`12px`, 82% opacity) under its title — the admin's Online text inside operating hours, the Offline text outside them. Availability is words only: no dot, no color change, no separate banner.
+
+### Preview Bubble (added 2026-10-21)
+
+- **Purpose:** shows a team member's message to a visitor who has not opened the chat, so a message sent from the admin's Now live list is seen.
+- **Style:** a `14px`-radius card on `var(--kw-surface)` with a hairline border and a soft lifted shadow, `280px` wide at most, sitting `12px` above the launcher. Sender name (Label role, muted) over up to three lines of the message.
+- **Behavior:** one bubble at a time; clicking it opens the chat; a small ghost cross dismisses it; it disappears when the chat opens. Visitor messages never trigger it.
 
 ### Cards / Containers
 

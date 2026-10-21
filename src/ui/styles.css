@@ -49,6 +49,82 @@ button {
   );
 }
 
+.kw-teaser {
+  position: absolute;
+  bottom: calc(var(--kw-launcher-size, 54px) + 12px);
+  width: min(280px, calc(100vw - 32px));
+  border: 1px solid var(--kw-border);
+  border-radius: 14px;
+  background: var(--kw-surface);
+  box-shadow: 0 12px 28px -10px var(--kw-soft-shadow);
+  animation: kw-panel-enter 180ms ease-out;
+}
+
+.kw-teaser[hidden] {
+  display: none;
+}
+
+.kw-root--right .kw-teaser {
+  right: 0;
+}
+
+.kw-root--left .kw-teaser {
+  left: 0;
+}
+
+.kw-teaser-open {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 36px 12px 14px;
+  border: 0;
+  background: transparent;
+  color: var(--kw-ink-900);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.kw-teaser-name {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--kw-ink-500);
+}
+
+.kw-teaser-text {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 14px;
+  line-height: 1.4;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+}
+
+.kw-teaser-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: grid;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--kw-ink-500);
+  cursor: pointer;
+}
+
+.kw-teaser-dismiss:hover {
+  background: var(--kw-surface-sunk);
+}
+
+.kw-teaser-dismiss svg {
+  width: 14px;
+  height: 14px;
+}
+
 .kw-root--right {
   right: var(--kw-side-offset, 20px);
 }
@@ -276,6 +352,26 @@ button {
   border-radius: 52% 48% 0 0 / 76% 66% 0 0;
   background: var(--kw-surface);
   transform: rotate(-1.5deg);
+}
+
+.kw-home-background {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+.kw-panel--home .kw-home-background:not([hidden]),
+.kw-panel--lead-capture .kw-home-background:not([hidden]) {
+  display: block;
+}
+
+.kw-menu-trigger[hidden] {
+  display: none !important;
 }
 
 .kw-header-main {
@@ -2409,8 +2505,31 @@ button {
 }
 
 .kw-btn-primary-label {
+  display: flex;
   flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
   text-align: left;
+}
+
+.kw-btn-primary--has-status {
+  min-height: 64px;
+  padding-block: 12px;
+}
+
+.kw-btn-primary-status {
+  overflow: hidden;
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 1.3;
+  opacity: 0.82;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.kw-btn-primary-status[hidden] {
+  display: none;
 }
 
 .kw-starters {

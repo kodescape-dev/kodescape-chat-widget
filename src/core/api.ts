@@ -42,7 +42,7 @@ export class ChatApi {
   getWidgetSettings(siteId: string): Promise<WidgetSettings> {
     return request<WidgetSettings>(
       `${this.apiBaseUrl}/api/v1/public/chat/widget-settings?siteId=${encodeURIComponent(siteId)}`,
-      { method: 'GET' },
+      { method: 'GET', cache: 'no-store' },
     );
   }
 
