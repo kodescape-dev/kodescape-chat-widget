@@ -1329,3 +1329,30 @@ Last updated: 2026-10-22
 - Consent: tracking starts as soon as the widget loads. A cookie-consent gate
   (in the host site) was explicitly postponed.
 - Windows users: flag emoji do not render there; the admin may need flag images.
+
+---
+
+# Memory — Cloudflare build fix (2026-10-26)
+
+Last updated: 2026-10-26 00:30
+
+## What was built
+
+- `package.json`: added `"packageManager": "pnpm@11.20.0"`. A short "Cloudflare build note"
+  was appended to `context/architecture.md`.
+
+## Problems solved
+
+- Cloudflare build failed at install with `ERROR packages field missing or empty`. Cause:
+  its default pnpm 9.10 treats `pnpm-workspace.yaml` as a workspace file and requires
+  `packages:`; ours only holds `allowBuilds: { esbuild, workerd }` (pnpm 10+).
+
+## Current state
+
+- Fix is in the repo; not yet confirmed on Cloudflare. If the log still says `pnpm@9.x`,
+  set build variable `PNPM_VERSION=11.20.0`. Next possible failures: `wrangler deploy`
+  needing `dist/`, or an esbuild/workerd build-script approval.
+
+## Next session starts with
+
+Retry the Cloudflare deployment and read the "Detected the following tools" line.

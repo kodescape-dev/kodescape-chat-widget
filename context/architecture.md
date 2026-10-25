@@ -349,3 +349,11 @@ repo has something real to call. Covered by a new case in
   hides when the chat opens. Visitor messages never show it.
 - Home status line: the Start a conversation button shows the online or
   offline status text as a second line (`setStatusMessages`).
+
+## Cloudflare build note (2026-10-26)
+
+`package.json` pins `"packageManager": "pnpm@11.20.0"`. Cloudflare's build image defaults
+to pnpm 9, which rejects `pnpm-workspace.yaml` files that have no `packages:` list (this
+repo's file only holds `allowBuilds` for esbuild and workerd, a pnpm 10+ setting) and fails
+with `ERROR packages field missing or empty`. If the build log still shows
+`pnpm@9.x`, set the build variable `PNPM_VERSION=11.20.0` in the Cloudflare project.
