@@ -32,6 +32,7 @@ export interface MountOptions {
 }
 
 export interface MountedWidget {
+  open(): void;
   destroy(): void;
 }
 
@@ -1141,6 +1142,9 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   return {
+    open() {
+      if (!destroyed && !isOpen) void setOpen(true);
+    },
     destroy() {
       destroyed = true;
       clearTimeout(settingsTimer);
@@ -1230,9 +1234,15 @@ export type { LocalMessage };
 
 declare global {
   interface Window {
-    KodescapeChatWidget?: { mount: typeof mount; bootstrap: typeof bootstrap };
+    KodescapeChatWidget?: {
+      mount: typeof mount;
+      bootstrap: typeof bootstrap;
+      open: () => void;
+    };
   }
 }
+
+let activeWidget: MountedWidget | null = null;
 
 export function bootstrap(
   script: HTMLScriptElement | null = findWidgetScript(),
@@ -1244,7 +1254,8 @@ export function bootstrap(
 
   script.dataset.kodescapeMounted = 'true';
   try {
-    return mount({ siteId });
+    activeWidget = mount({ siteId });
+    return activeWidget;
   } catch (error) {
     delete script.dataset.kodescapeMounted;
     throw error;
@@ -1252,6 +1263,10 @@ export function bootstrap(
 }
 
 if (typeof document !== 'undefined') {
-  window.KodescapeChatWidget = { mount, bootstrap };
+  window.KodescapeChatWidget = {
+    mount,
+    bootstrap,
+    open: () => activeWidget?.open(),
+  };
   bootstrap();
 }
