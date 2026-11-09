@@ -393,3 +393,21 @@ with `ERROR packages field missing or empty`. If the build log still shows
   `booking-review`, and `booking-confirmed` states use a local sample provider
   in `mount.ts`. Preview never calls the booking API.
 - Tests: `tests/smoke/channels-booking.test.ts`.
+
+### Theming of channels and booking
+
+- Channel tiles and every booking screen read the same Website Chat appearance
+  variables as Home: `--kw-primary-color`, `--kw-primary-foreground`,
+  `--kw-background-color`, `--kw-text-color`, and the tokens derived from them
+  (`--kw-surface`, `--kw-border`, `--kw-ink-*`, `--kw-brand-soft`, plus
+  `--kw-accent-ink`, a primary mixed with the text color for icons and links on
+  soft backgrounds). There is no booking-specific theme. A guard test
+  (`tests/unit/booking-theme.test.ts`) fails if those styles use a fixed color.
+- The booking view shares the Home and Pre-chat header, curve, and optional
+  background image (preset or uploaded), so the configured background applies to
+  every step.
+- Review and confirmation use one appointment card (service, date, time with
+  timezone, location, contact, reference). On confirmation the Done action sits
+  in the fixed footer so it never scrolls out of view.
+- The admin preview is the same renderer, so appearance edits reach every
+  booking preview step, desktop and mobile.

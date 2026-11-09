@@ -27,6 +27,14 @@ const FORWARD_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHECK_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const CALENDAR_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
+const CLOCK_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const PIN_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 21s7-6.2 7-11.5A7 7 0 0 0 5 9.5C5 14.8 12 21 12 21Z" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><circle cx="12" cy="9.5" r="2.5" stroke="currentColor" stroke-width="1.8"/></svg>';
+const USER_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="8" r="4" stroke="currentColor" stroke-width="1.8"/><path d="M4.5 20c.7-3.8 3.6-6 7.5-6s6.8 2.2 7.5 6" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 const SLOT_FILTERS: Array<[SlotFilter, string]> = [
   ['all', 'All'],
   ['morning', 'Morning'],
@@ -202,8 +210,13 @@ export function createBookingView(handlers: {
     const index = list.indexOf(step);
     const done = step === 'done';
     top.hidden = done;
-    nav.hidden = done;
-    if (done) return;
+    backButton.hidden = done;
+    nav.classList.toggle('kw-booking-nav--single', done);
+    if (done) {
+      nextButton.textContent = 'Done';
+      nextButton.disabled = false;
+      return;
+    }
     stepLabel.textContent = `Step ${index + 1} of ${list.length}`;
     progress.setAttribute('aria-valuemax', String(list.length));
     progress.setAttribute('aria-valuenow', String(index + 1));
@@ -595,15 +608,68 @@ export function createBookingView(handlers: {
     content.append(form);
   }
 
-  function summary(rows: Array<[string, string]>): HTMLElement {
-    const list = node('dl', 'kw-summary');
-    for (const [label, value] of rows) {
-      if (!value) continue;
-      const row = node('div', 'kw-summary-row');
-      row.append(node('dt', '', label), node('dd', '', value));
-      list.append(row);
+  function appointmentCard(details: {
+    serviceName: string;
+    durationMinutes: number;
+    startAt: string;
+    address: {
+      street: string;
+      city: string;
+      state: string;
+      postalCode: string;
+    } | null;
+    contact?: string[];
+    reference?: string;
+  }): HTMLElement {
+    const card = node('div', 'kw-appointment');
+    const head = node('div', 'kw-appointment-head');
+    head.append(
+      node('span', 'kw-appointment-service', details.serviceName),
+      node(
+        'span',
+        'kw-appointment-duration',
+        durationLabel(details.durationMinutes),
+      ),
+    );
+    const body = node('dl', 'kw-appointment-body');
+    const endAt = new Date(
+      new Date(details.startAt).getTime() + details.durationMinutes * 60_000,
+    ).toISOString();
+    const rows: Array<[string, string, string[]]> = [
+      ['Date', CALENDAR_ICON, [formatDay(details.startAt)]],
+      [
+        'Time',
+        CLOCK_ICON,
+        [
+          `${formatTime(details.startAt)} – ${formatTime(endAt)}`,
+          timeZoneLabel(),
+        ],
+      ],
+    ];
+    if (details.address)
+      rows.push(['Location', PIN_ICON, [addressLine(details.address)]]);
+    if (details.contact?.length)
+      rows.push(['Contact', USER_ICON, details.contact]);
+    for (const [label, icon, lines] of rows) {
+      const row = node('div', 'kw-appointment-row');
+      const iconEl = node('span', 'kw-appointment-icon');
+      iconEl.innerHTML = icon;
+      const text = node('div', '');
+      text.append(node('dt', '', label));
+      for (const line of lines) text.append(node('dd', '', line));
+      row.append(iconEl, text);
+      body.append(row);
     }
-    return list;
+    card.append(head, body);
+    if (details.reference) {
+      const footer = node('div', 'kw-appointment-ref');
+      footer.append(
+        node('span', '', 'Reference'),
+        node('strong', '', details.reference),
+      );
+      card.append(footer);
+    }
+    return card;
   }
 
   function renderReview(): void {
@@ -612,16 +678,17 @@ export function createBookingView(handlers: {
     heading('Confirm Your Appointment');
     const { contact, address } = state;
     content.append(
-      summary([
-        ['Service', service.name],
-        ['Duration', durationLabel(durationMinutes)],
-        ['Date', formatDay(state.startAt)],
-        ['Time', `${formatTime(state.startAt)} (${timeZoneLabel()})`],
-        ['Address', config.requireAddress ? addressLine(address) : ''],
-        ['Name', `${contact.firstName.trim()} ${contact.lastName.trim()}`],
-        ['Phone', contact.phone.trim()],
-        ['Email', contact.email.trim()],
-      ]),
+      appointmentCard({
+        serviceName: service.name,
+        durationMinutes,
+        startAt: state.startAt,
+        address: config.requireAddress ? address : null,
+        contact: [
+          `${contact.firstName.trim()} ${contact.lastName.trim()}`,
+          contact.phone.trim(),
+          contact.email.trim(),
+        ].filter(Boolean),
+      }),
     );
   }
 
@@ -632,34 +699,21 @@ export function createBookingView(handlers: {
     content.append(badge);
     heading("You're booked", result.confirmationText);
     content.append(
-      summary([
-        ['Service', result.serviceName],
-        ['Date', formatDay(result.startAt)],
-        ['Time', `${formatTime(result.startAt)} (${timeZoneLabel()})`],
-        ['Duration', durationLabel(result.durationMinutes)],
-        ['Address', result.address ? addressLine(result.address) : ''],
-        ['Reference', result.reference],
-      ]),
+      appointmentCard({
+        serviceName: result.serviceName,
+        durationMinutes: result.durationMinutes,
+        startAt: result.startAt,
+        address: result.address,
+        reference: result.reference,
+      }),
       node(
         'p',
-        'kw-booking-description',
+        'kw-booking-note',
         state.contact.email.trim()
           ? `We sent a confirmation to ${state.contact.email.trim()}. Keep your reference handy if you need to change anything.`
           : 'Keep your reference handy if you need to change anything.',
       ),
     );
-    const done = node(
-      'button',
-      'kw-btn-primary kw-btn-primary--center',
-      'Done',
-    );
-    done.type = 'button';
-    done.addEventListener('click', () => {
-      reset();
-      render();
-      handlers.onExit();
-    });
-    content.append(done);
   }
 
   function render(): void {
@@ -746,6 +800,12 @@ export function createBookingView(handlers: {
   });
 
   nextButton.addEventListener('click', () => {
+    if (step === 'done') {
+      reset();
+      render();
+      handlers.onExit();
+      return;
+    }
     if (step === 'review') {
       void submit();
       return;
