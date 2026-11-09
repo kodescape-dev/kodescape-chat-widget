@@ -3028,55 +3028,24 @@ textarea.kw-field-input {
   flex-direction: column;
 }
 
-.kw-booking-top {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 0 8px;
-  padding: 4px 20px 10px 12px;
-  flex-shrink: 0;
-}
-
-.kw-booking-top[hidden],
 .kw-booking-nav[hidden],
 .kw-booking-error[hidden] {
   display: none;
 }
 
-.kw-booking-top .kw-lead-back {
-  margin: 0;
-}
-
-.kw-booking-step-label {
-  justify-self: end;
+.kw-booking-step {
+  margin: 0 0 4px;
   font-size: 12px;
   font-weight: 600;
   color: var(--kw-ink-500);
   font-variant-numeric: tabular-nums;
 }
 
-.kw-booking-progress {
-  grid-column: 1 / -1;
-  height: 4px;
-  margin-left: 8px;
-  overflow: hidden;
-  border-radius: 999px;
-  background: var(--kw-surface-sunk);
-}
-
-.kw-booking-progress-bar {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: var(--kw-primary-color, #173bd3);
-  transition: width 200ms ease;
-}
-
 .kw-booking-content {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 8px 20px 16px;
+  padding: 16px 20px;
 }
 
 .kw-booking-content--enter {
@@ -3504,8 +3473,7 @@ textarea.kw-field-input {
   .kw-service,
   .kw-date,
   .kw-slot,
-  .kw-btn-secondary,
-  .kw-booking-progress-bar {
+  .kw-btn-secondary {
     transition: none;
   }
 

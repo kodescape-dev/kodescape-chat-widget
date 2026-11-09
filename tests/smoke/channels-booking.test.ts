@@ -318,9 +318,9 @@ describe('contact channels and embedded booking', () => {
     expect(query(shadow, '.kw-panel').classList).toContain('kw-panel--booking');
     expect(headingText(shadow)).toBe('How can we help you?');
     expect(shadow.querySelectorAll('.kw-service')).toHaveLength(2);
-    expect(query(shadow, '.kw-booking-step-label').textContent).toBe(
-      'Step 1 of 4',
-    );
+    expect(query(shadow, '.kw-booking-step').textContent).toBe('Step 1 of 4');
+    expect(shadow.querySelector('.kw-booking-progress')).toBeNull();
+    expect(shadow.querySelector('.kw-booking-top')).toBeNull();
     expect(query(shadow, '.kw-service-list').textContent).not.toMatch(
       /hour|hr|min/,
     );
@@ -425,7 +425,7 @@ describe('contact channels and embedded booking', () => {
     const confirmation = query(shadow, '.kw-appointment').textContent ?? '';
     for (const expected of ['BK-TEST42', '1 hour', 'Thursday, November 12'])
       expect(confirmation).toContain(expected);
-    expect(query(shadow, '.kw-booking-top').hidden).toBe(true);
+    expect(shadow.querySelector('.kw-booking-step')).toBeNull();
     expect(back(shadow).hidden).toBe(true);
     expect(next(shadow).textContent).toBe('Done');
 
@@ -466,9 +466,11 @@ describe('contact channels and embedded booking', () => {
     expect(query(shadow, '.kw-panel').hidden).toBe(false);
     expect(headingText(shadow)).toBe('When would you like to schedule?');
 
-    query<HTMLButtonElement>(shadow, '.kw-booking-top .kw-lead-back').click();
+    back(shadow).click();
+    back(shadow).click();
     expect(query(shadow, '.kw-panel').classList).toContain('kw-panel--home');
     query<HTMLButtonElement>(shadow, 'button.kw-channel').click();
+    next(shadow).click();
     next(shadow).click();
     expect(query<HTMLInputElement>(shadow, '#kw-book-city').value).toBe(
       'Albany',
@@ -552,7 +554,7 @@ describe('contact channels and embedded booking', () => {
     expect(query(shadow, '.kw-panel').classList).toContain('kw-panel--home');
     query<HTMLButtonElement>(shadow, 'button.kw-channel').click();
     expect(query(shadow, '.kw-chat-view').hidden).toBe(true);
-    query<HTMLButtonElement>(shadow, '.kw-booking-top .kw-lead-back').click();
+    back(shadow).click();
 
     query<HTMLButtonElement>(shadow, '.kw-home .kw-btn-primary').click();
     await flush();

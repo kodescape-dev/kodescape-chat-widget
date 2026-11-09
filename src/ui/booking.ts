@@ -83,20 +83,6 @@ export function createBookingView(handlers: {
 }): BookingViewHandle {
   const el = node('div', 'kw-booking');
 
-  const top = node('div', 'kw-booking-top');
-  const homeButton = node('button', 'kw-lead-back');
-  homeButton.type = 'button';
-  homeButton.innerHTML = `${BACK_ICON}<span>Home</span>`;
-  homeButton.addEventListener('click', handlers.onExit);
-  const stepLabel = node('span', 'kw-booking-step-label');
-  const progress = node('div', 'kw-booking-progress');
-  progress.setAttribute('role', 'progressbar');
-  progress.setAttribute('aria-label', 'Booking progress');
-  progress.setAttribute('aria-valuemin', '1');
-  const progressBar = node('span', 'kw-booking-progress-bar');
-  progress.append(progressBar);
-  top.append(homeButton, stepLabel, progress);
-
   const content = node('div', 'kw-booking-content');
   const errorEl = node('p', 'kw-booking-error');
   errorEl.setAttribute('role', 'alert');
@@ -109,7 +95,7 @@ export function createBookingView(handlers: {
   nextButton.type = 'button';
   nav.append(backButton, nextButton);
 
-  el.append(top, content, errorEl, nav);
+  el.append(content, errorEl, nav);
 
   let config: EmbeddedBookingChannel | null = null;
   let step: BookingStep = 'service';
@@ -206,10 +192,7 @@ export function createBookingView(handlers: {
   }
 
   function updateNav(): void {
-    const list = steps();
-    const index = list.indexOf(step);
     const done = step === 'done';
-    top.hidden = done;
     backButton.hidden = done;
     nav.classList.toggle('kw-booking-nav--single', done);
     if (done) {
@@ -217,10 +200,6 @@ export function createBookingView(handlers: {
       nextButton.disabled = false;
       return;
     }
-    stepLabel.textContent = `Step ${index + 1} of ${list.length}`;
-    progress.setAttribute('aria-valuemax', String(list.length));
-    progress.setAttribute('aria-valuenow', String(index + 1));
-    progressBar.style.width = `${((index + 1) / list.length) * 100}%`;
     backButton.disabled = submitting;
     nextButton.textContent =
       step !== 'review'
@@ -722,6 +701,16 @@ export function createBookingView(handlers: {
     activeForm = null;
     showError(step === 'schedule' ? scheduleNotice : '');
     if (!config) return;
+    if (step !== 'done') {
+      const list = steps();
+      content.append(
+        node(
+          'p',
+          'kw-booking-step',
+          `Step ${list.indexOf(step) + 1} of ${list.length}`,
+        ),
+      );
+    }
     if (step === 'service') renderService();
     else if (step === 'schedule') renderSchedule();
     else if (step === 'contact') renderContact();
