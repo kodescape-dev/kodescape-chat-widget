@@ -357,3 +357,37 @@ to pnpm 9, which rejects `pnpm-workspace.yaml` files that have no `packages:` li
 repo's file only holds `allowBuilds` for esbuild and workerd, a pnpm 10+ setting) and fails
 with `ERROR packages field missing or empty`. If the build log still shows
 `pnpm@9.x`, set the build variable `PNPM_VERSION=11.20.0` in the Cloudflare project.
+
+## Contact channels and embedded booking (2026-11-10)
+
+- `WidgetSettings.channels` (optional) comes from the public settings response.
+  `ui/home.ts` `setChannels()` renders one tile per non-null channel between the
+  Start button and the conversation starters. No `channels`, or all `null`,
+  renders nothing, so older API responses keep the original Home.
+- Text, Call, Email, and external booking are plain links (`sms:`, `tel:`,
+  `mailto:`, or the configured URL). An external booking URL on another origin
+  opens in a new tab; a same-site URL or path stays in the current tab.
+- Embedded booking is a fourth view, `booking`, in `ui/window.ts`
+  (`ui/booking.ts`). Steps: service, address (only when required), schedule,
+  contact, review, then a confirmation shown only after the API accepts the
+  booking. Its state lives in the view, so Back, Home, and minimize keep what
+  the visitor entered.
+- Booking never uses the chat session, socket, or store. It talks to the API
+  through a `BookingProvider` with `siteId` only
+  (`GET /public/chat/booking/availability`,
+  `POST /public/chat/booking/appointments`).
+- One `clientRequestId` is reused for retries of the same booking, so a retry
+  after a network failure cannot create a second appointment. A `409` sends the
+  visitor back to the schedule step with fresh times.
+- Times are formatted in the business timezone from settings, never the
+  visitor's clock.
+- `setOpen()` returns early while booking is the active view, so reopening the
+  panel resumes the booking instead of jumping to Home or Chat.
+- When any channel is configured, the Chat header shows a back button to Home.
+  `enterChat()` and `handleStart()` now show the Chat view again when the
+  visitor has already entered chat, which is how they return to the same
+  conversation. Sites with no channels never see the button.
+- Preview: `booking-services`, `booking-schedule`, `booking-contact`,
+  `booking-review`, and `booking-confirmed` states use a local sample provider
+  in `mount.ts`. Preview never calls the booking API.
+- Tests: `tests/smoke/channels-booking.test.ts`.

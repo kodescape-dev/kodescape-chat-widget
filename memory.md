@@ -1356,3 +1356,15 @@ Last updated: 2026-10-26 00:30
 ## Next session starts with
 
 Retry the Cloudflare deployment and read the "Detected the following tools" line.
+
+## Session 2026-11-10: contact channels and embedded booking
+
+- Built across cms-api, admin, chat-widget, and docs: Book / Text / Call / Email on the widget
+  home, a Channels tab in Website Chat settings, and an in-widget booking flow with a built-in
+  scheduler (`chat_appointments`). Details are in each repo's architecture notes.
+- Lift Construction could not be inspected (Cloudflare blocks automated browsers, REA is not on
+  the lean-ctx allowlist), so the booking flow follows the written spec, not verified reference
+  behavior.
+- Not built: SMS sending, calendar sync, reschedule and reminders, in-widget email form.
+- Still to do by hand: turn on embedded booking for the roofing org and set the external
+  booking URL (`/book-a-call`) for the main Kodescape site in Settings > Website Chat > Channels.

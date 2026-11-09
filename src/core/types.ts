@@ -71,6 +71,7 @@ export interface WidgetSettings {
   showOnDesktop: boolean;
   showOnMobile: boolean;
   deviceSettings?: WidgetDeviceSettings;
+  channels?: WidgetChannels | null;
   visibilityRules: Array<{
     action: 'include' | 'exclude';
     match: 'exact' | 'contains' | 'prefix';
@@ -196,4 +197,84 @@ export interface ContextPayload {
   os?: string;
   deviceType?: DeviceType;
   timezone?: string;
+}
+
+export interface BookingServiceOption {
+  id: string;
+  name: string;
+  description: string;
+  durationMinutes: number;
+}
+
+export interface EmbeddedBookingChannel {
+  mode: 'embedded';
+  label: string;
+  heading: string;
+  description: string;
+  confirmationText: string;
+  timeZone: string;
+  services: BookingServiceOption[];
+  requireAddress: boolean;
+  requireEmail: boolean;
+  requirePhone: boolean;
+}
+
+export interface WidgetChannels {
+  booking:
+    | { mode: 'external'; label: string; url: string }
+    | EmbeddedBookingChannel
+    | null;
+  text: { label: string; phone: string; message: string } | null;
+  call: { label: string; phone: string } | null;
+  email: { label: string; address: string; subject: string } | null;
+}
+
+export interface BookingAvailability {
+  timeZone: string;
+  durationMinutes: number;
+  lastDate: string;
+  days: Array<{
+    date: string;
+    slots: Array<{ startAt: string; available: boolean }>;
+  }>;
+}
+
+export interface BookingAddress {
+  street: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  notes?: string;
+}
+
+export interface AppointmentRequest {
+  clientRequestId: string;
+  serviceId: string;
+  startAt: string;
+  customer: {
+    firstName: string;
+    lastName: string;
+    phone?: string;
+    email?: string;
+    smsConsent: boolean;
+  };
+  address?: BookingAddress;
+}
+
+export interface AppointmentResult {
+  reference: string;
+  serviceName: string;
+  durationMinutes: number;
+  startAt: string;
+  timeZone: string;
+  address: BookingAddress | null;
+  confirmationText: string;
+}
+
+export interface BookingProvider {
+  getAvailability(
+    serviceId: string,
+    from?: string,
+  ): Promise<BookingAvailability>;
+  createAppointment(request: AppointmentRequest): Promise<AppointmentResult>;
 }

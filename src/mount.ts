@@ -4,6 +4,10 @@ import { ChatSocket } from './core/socket';
 import { ChatStore } from './core/store';
 import type { LocalMessage } from './core/store';
 import type {
+  AppointmentRequest,
+  AppointmentResult,
+  BookingAvailability,
+  BookingProvider,
   DeviceDisplaySettings,
   MessageAttachment,
   TypingEvent,
@@ -36,7 +40,24 @@ export interface MountedWidget {
   destroy(): void;
 }
 
-export type PreviewState = 'home' | 'chat' | 'pre-chat' | 'minimized';
+export type PreviewState =
+  | 'home'
+  | 'chat'
+  | 'pre-chat'
+  | 'minimized'
+  | 'booking-services'
+  | 'booking-schedule'
+  | 'booking-contact'
+  | 'booking-review'
+  | 'booking-confirmed';
+
+const PREVIEW_BOOKING_STEPS = {
+  'booking-services': 'service',
+  'booking-schedule': 'schedule',
+  'booking-contact': 'contact',
+  'booking-review': 'review',
+  'booking-confirmed': 'done',
+} as const;
 export type PreviewDevice = 'desktop' | 'mobile';
 
 export type PreviewConfigMessage = {
@@ -273,6 +294,14 @@ export function mount(options: MountOptions): MountedWidget {
       soundNotificationsEnabled =
         currentSettings?.incomingMessageSound === true && enabled;
     },
+    bookingProvider: options.preview
+      ? previewBookingProvider(() => currentSettings)
+      : {
+          getAvailability: (serviceId, from) =>
+            api.getBookingAvailability(options.siteId, serviceId, from),
+          createAppointment: (request) =>
+            api.createAppointment(options.siteId, request),
+        },
   });
   chatWindow.setResumeAvailable(canAutoResume());
   root.append(chatWindow.el, teaser.el, launcher.el);
@@ -345,6 +374,10 @@ export function mount(options: MountOptions): MountedWidget {
       chatWindow.setVisible(true);
       return;
     }
+    if (chatWindow.isBookingActive()) {
+      chatWindow.setVisible(true);
+      return;
+    }
     const hadUnreadMessages = unreadMessageCount > 0;
     unreadMessageCount = 0;
     launcher.setUnread(0);
@@ -406,7 +439,10 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   async function enterChat(): Promise<void> {
-    if (hasEnteredChat) return;
+    if (hasEnteredChat) {
+      chatWindow.showChat();
+      return;
+    }
     hasEnteredChat = true;
     chatWindow.showChat();
     if (options.preview) {
@@ -483,6 +519,11 @@ export function mount(options: MountOptions): MountedWidget {
   }
 
   function handleStart(): void {
+    if (hasEnteredChat) {
+      chatWindow.showChat();
+      chatWindow.focusComposer();
+      return;
+    }
     if (options.preview) {
       if (
         contactCollectionMode() === 'before_chat' &&
@@ -1034,6 +1075,7 @@ export function mount(options: MountOptions): MountedWidget {
     chatWindow.setHomeHeading(normalized.welcomeHeading);
     chatWindow.setWelcomeMessage(normalized.welcomeMessage);
     chatWindow.setStarters(normalized.conversationStarters);
+    chatWindow.setChannels(normalized.channels);
     chatWindow.setComposerPlaceholder(normalized.composerPlaceholder);
     applyDeviceLayout(normalized);
   }
@@ -1083,7 +1125,17 @@ export function mount(options: MountOptions): MountedWidget {
     isOpen = true;
     chatWindow.setVisible(true);
     launcher.setOpen(true);
-    if (message.state === 'home') {
+    const bookingStep =
+      message.state in PREVIEW_BOOKING_STEPS
+        ? PREVIEW_BOOKING_STEPS[
+            message.state as keyof typeof PREVIEW_BOOKING_STEPS
+          ]
+        : null;
+    if (bookingStep) {
+      if (message.settings.channels?.booking?.mode === 'embedded')
+        chatWindow.showBooking(bookingStep);
+      else chatWindow.showHome();
+    } else if (message.state === 'home') {
       chatWindow.showHome();
     } else if (message.state === 'pre-chat') {
       chatWindow.configureLeadCapture(leadCaptureConfig());
@@ -1163,6 +1215,59 @@ export function mount(options: MountOptions): MountedWidget {
       socket.disconnect();
       chatWindow.destroy();
       host.remove();
+    },
+  };
+}
+
+// Admin preview only: sample times so the booking screens can be designed
+// without touching the API. Nothing here is ever saved or sent.
+function previewBookingProvider(
+  settings: () => WidgetSettings | null,
+): BookingProvider {
+  const booking = () => {
+    const channel = settings()?.channels?.booking;
+    return channel?.mode === 'embedded' ? channel : null;
+  };
+  return {
+    getAvailability(serviceId, from): Promise<BookingAvailability> {
+      const durationMinutes =
+        booking()?.services.find((service) => service.id === serviceId)
+          ?.durationMinutes ?? 60;
+      const start = from ? new Date(`${from}T00:00:00Z`) : new Date();
+      const days = Array.from({ length: 14 }, (_, index) => {
+        const day = new Date(start.getTime() + (index + 1) * 86_400_000);
+        const date = day.toISOString().slice(0, 10);
+        const weekend = [0, 6].includes(day.getUTCDay());
+        return {
+          date,
+          slots: weekend
+            ? []
+            : [14, 15, 16, 18, 19, 20].map((hour, slotIndex) => ({
+                startAt: `${date}T${hour}:00:00.000Z`,
+                available: (index + slotIndex) % 4 !== 3,
+              })),
+        };
+      });
+      return Promise.resolve({
+        timeZone: booking()?.timeZone ?? 'UTC',
+        durationMinutes,
+        lastDate: days[days.length - 1].date,
+        days,
+      });
+    },
+    createAppointment(request: AppointmentRequest): Promise<AppointmentResult> {
+      const service = booking()?.services.find(
+        (item) => item.id === request.serviceId,
+      );
+      return Promise.resolve({
+        reference: 'BK-PREVIEW',
+        serviceName: service?.name ?? 'Service',
+        durationMinutes: service?.durationMinutes ?? 60,
+        startAt: request.startAt,
+        timeZone: booking()?.timeZone ?? 'UTC',
+        address: request.address ?? null,
+        confirmationText: booking()?.confirmationText ?? '',
+      });
     },
   };
 }

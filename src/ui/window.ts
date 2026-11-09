@@ -1,6 +1,13 @@
 import { createComposer } from './composer';
 import type { ComposerSubmission } from './composer';
-import type { MessageAttachment, MessageReply } from '../core/types';
+import type {
+  BookingProvider,
+  MessageAttachment,
+  MessageReply,
+  WidgetChannels,
+} from '../core/types';
+import { createBookingView } from './booking';
+import type { BookingStep } from './booking';
 import { createTypingIndicator } from './typing-indicator';
 import { createHomeView } from './home';
 import { createLeadCaptureForm } from './lead-capture';
@@ -23,6 +30,9 @@ export interface ChatWindowHandle {
   setWelcomeMessage(text: string): void;
   setHomeHeading(text: string): void;
   setStarters(items: string[]): void;
+  setChannels(channels: WidgetChannels | null | undefined): void;
+  showBooking(previewStep?: BookingStep): void;
+  isBookingActive(): boolean;
   setSupportIdentity(
     name: string,
     subtitle: string,
@@ -56,11 +66,13 @@ export interface ChatWindowHandle {
   destroy(): void;
 }
 
-type View = 'home' | 'lead-capture' | 'chat';
+type View = 'home' | 'lead-capture' | 'chat' | 'booking';
 
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
 
+const HOME_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const MORE_ICON =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
 const NOTIFICATIONS_OFF_ICON =
@@ -80,6 +92,7 @@ export function createChatWindow(handlers: {
   onContactPromptSubmit: (data: ContactPromptData) => void;
   onContactPromptDismiss: () => void;
   onNotificationsChange: (enabled: boolean) => void;
+  bookingProvider: BookingProvider;
 }): ChatWindowHandle {
   const panel = document.createElement('div');
   panel.className = 'kw-panel';
@@ -98,6 +111,20 @@ export function createChatWindow(handlers: {
 
   const headerMain = document.createElement('div');
   headerMain.className = 'kw-header-main';
+
+  // Only offered once a contact channel exists, so a visitor already in a
+  // conversation can still get back to Book, Text, Call, and Email.
+  const homeButton = document.createElement('button');
+  homeButton.type = 'button';
+  homeButton.className = 'kw-header-action kw-header-home';
+  homeButton.setAttribute('aria-label', 'Back to home');
+  homeButton.innerHTML = HOME_ICON;
+  homeButton.hidden = true;
+  homeButton.addEventListener('click', () => {
+    setView('home');
+    home.focusPrimary();
+  });
+  let hasChannels = false;
 
   const headerBrand = createBrandMark('kw-header-brand');
 
@@ -220,7 +247,7 @@ export function createChatWindow(handlers: {
   supportPresence.append(presenceAvatar, ...companionAvatars, presenceCount);
 
   headerActions.append(menuButton);
-  headerMain.append(headerBrand, headerText, headerActions);
+  headerMain.append(homeButton, headerBrand, headerText, headerActions);
   header.append(headerMain, supportPresence);
 
   const home = createHomeView({
@@ -230,6 +257,18 @@ export function createChatWindow(handlers: {
       handlers.onContinue();
     },
     onStarter: handlers.onStarter,
+    onBook: () => {
+      setView('booking');
+      booking.focus();
+    },
+  });
+
+  const booking = createBookingView({
+    provider: handlers.bookingProvider,
+    onExit: () => {
+      setView('home');
+      home.focusPrimary();
+    },
   });
 
   const leadCapture = createLeadCaptureForm({
@@ -263,7 +302,7 @@ export function createChatWindow(handlers: {
 
   const body = document.createElement('div');
   body.className = 'kw-body';
-  body.append(home.el, leadCapture.el, chatView);
+  body.append(home.el, leadCapture.el, chatView, booking.el);
 
   panel.append(header, headerMenu, body);
 
@@ -281,10 +320,16 @@ export function createChatWindow(handlers: {
     if (event.key === 'Tab') trapFocus(event, panel);
   });
 
+  let currentView: View = 'home';
+
   function setView(
     view: View,
     options: { focusLeadCapture?: boolean } = {},
   ): void {
+    currentView = view;
+    panel.classList.toggle('kw-panel--booking', view === 'booking');
+    booking.el.hidden = view !== 'booking';
+    homeButton.hidden = view !== 'chat' || !hasChannels;
     panel.classList.toggle('kw-panel--home', view === 'home');
     panel.classList.toggle('kw-panel--lead-capture', view === 'lead-capture');
     panel.classList.toggle('kw-panel--chat', view === 'chat');
@@ -336,6 +381,25 @@ export function createChatWindow(handlers: {
     },
     setStarters(items) {
       home.setStarters(items);
+    },
+    setChannels(channels) {
+      home.setChannels(channels);
+      hasChannels = Boolean(
+        channels &&
+        (channels.booking || channels.text || channels.call || channels.email),
+      );
+      homeButton.hidden = currentView !== 'chat' || !hasChannels;
+      const embedded =
+        channels?.booking?.mode === 'embedded' ? channels.booking : null;
+      booking.configure(embedded);
+      if (!embedded && currentView === 'booking') setView('home');
+    },
+    showBooking(previewStep) {
+      setView('booking');
+      if (previewStep) booking.preview(previewStep);
+    },
+    isBookingActive() {
+      return currentView === 'booking';
     },
     setSupportIdentity(name, subtitle, avatarUrl) {
       title.textContent = name || 'Chat with us';

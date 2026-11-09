@@ -1,5 +1,8 @@
 import type {
   ApiEnvelope,
+  AppointmentRequest,
+  AppointmentResult,
+  BookingAvailability,
   ChatSession,
   ContextPayload,
   IdentifyResult,
@@ -163,6 +166,33 @@ export class ChatApi {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  getBookingAvailability(
+    siteId: string,
+    serviceId: string,
+    from?: string,
+  ): Promise<BookingAvailability> {
+    const query = new URLSearchParams({ siteId, serviceId });
+    if (from) query.set('from', from);
+    return request<BookingAvailability>(
+      `${this.apiBaseUrl}/api/v1/public/chat/booking/availability?${query.toString()}`,
+      { method: 'GET', cache: 'no-store' },
+    );
+  }
+
+  createAppointment(
+    siteId: string,
+    payload: AppointmentRequest,
+  ): Promise<AppointmentResult> {
+    return request<AppointmentResult>(
+      `${this.apiBaseUrl}/api/v1/public/chat/booking/appointments?siteId=${encodeURIComponent(siteId)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
     );

@@ -1,3 +1,4 @@
+import type { WidgetChannels } from '../core/types';
 import { createPoweredBy } from './branding';
 
 export interface HomeViewHandle {
@@ -6,6 +7,7 @@ export interface HomeViewHandle {
   setHeading(text: string): void;
   setStarters(items: string[]): void;
   setStatus(text: string): void;
+  setChannels(channels: WidgetChannels | null | undefined): void;
   setResumeAvailable(available: boolean): void;
   focusPrimary(): void;
 }
@@ -16,6 +18,18 @@ const CHEVRON_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CHAT_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M5 17.5 2.5 20v-4.7A8.4 8.4 0 0 1 2 12.5C2 7.8 6.3 4 11.5 4S21 7.8 21 12.5 16.7 21 11.5 21a10.4 10.4 0 0 1-6.5-2.2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M7.5 11.5h.01m4-.01h.01m4-.01h.01" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+const CHANNEL_ICONS = {
+  book: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15.5" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="M3.5 10h17M8 3v4M16 3v4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>',
+  text: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M20.5 15a2 2 0 0 1-2 2H8l-4.5 4V5.5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  call: '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.9.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92Z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  email:
+    '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m3 7 9 6.5L21 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+} as const;
+
+function dialable(phone: string): string {
+  return phone.replace(/[^+\d]/g, '');
+}
 
 const STARTER_ICONS = {
   rocket:
@@ -34,6 +48,7 @@ export function createHomeView(handlers: {
   onStart: () => void;
   onContinue: () => void;
   onStarter: (text: string) => void;
+  onBook: () => void;
 }): HomeViewHandle {
   const el = document.createElement('div');
   el.className = 'kw-home';
@@ -78,13 +93,45 @@ export function createHomeView(handlers: {
   resumeLink.insertAdjacentHTML('beforeend', CHEVRON_ICON);
   resumeLink.addEventListener('click', handlers.onContinue);
 
+  const channelList = document.createElement('div');
+  channelList.className = 'kw-channels';
+  channelList.hidden = true;
+
+  function addChannel(
+    kind: keyof typeof CHANNEL_ICONS,
+    label: string,
+    href?: string,
+  ): HTMLElement {
+    const tile = document.createElement(href ? 'a' : 'button');
+    tile.className = 'kw-channel';
+    if (tile instanceof HTMLAnchorElement) tile.href = href ?? '';
+    else tile.type = 'button';
+    const icon = document.createElement('span');
+    icon.className = `kw-channel-icon kw-channel-icon--${kind}`;
+    icon.innerHTML = CHANNEL_ICONS[kind];
+    const text = document.createElement('span');
+    text.className = 'kw-channel-label';
+    text.textContent = label;
+    tile.append(icon, text);
+    channelList.appendChild(tile);
+    return tile;
+  }
+
   const starterList = document.createElement('div');
   starterList.className = 'kw-starters';
   starterList.hidden = true;
 
   const footer = createPoweredBy();
 
-  el.append(greeting, welcome, startButton, starterList, resumeLink, footer);
+  el.append(
+    greeting,
+    welcome,
+    startButton,
+    channelList,
+    starterList,
+    resumeLink,
+    footer,
+  );
 
   return {
     el,
@@ -118,6 +165,46 @@ export function createHomeView(handlers: {
       startStatus.textContent = text;
       startStatus.hidden = !text;
       startButton.classList.toggle('kw-btn-primary--has-status', Boolean(text));
+    },
+    setChannels(channels) {
+      channelList.textContent = '';
+      const { booking, text, call, email } = channels ?? {};
+      if (booking?.mode === 'embedded') {
+        addChannel('book', booking.label || 'Book').addEventListener(
+          'click',
+          handlers.onBook,
+        );
+      } else if (booking) {
+        const link = addChannel('book', booking.label || 'Book', booking.url);
+        if (
+          link instanceof HTMLAnchorElement &&
+          link.origin !== location.origin
+        ) {
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+        }
+      }
+      if (text) {
+        addChannel(
+          'text',
+          text.label || 'Text',
+          `sms:${dialable(text.phone)}${text.message ? `?&body=${encodeURIComponent(text.message)}` : ''}`,
+        );
+      }
+      if (call)
+        addChannel('call', call.label || 'Call', `tel:${dialable(call.phone)}`);
+      if (email) {
+        addChannel(
+          'email',
+          email.label || 'Email',
+          `mailto:${email.address}${email.subject ? `?subject=${encodeURIComponent(email.subject)}` : ''}`,
+        );
+      }
+      channelList.hidden = channelList.childElementCount === 0;
+      channelList.style.setProperty(
+        '--kw-channel-count',
+        String(channelList.childElementCount),
+      );
     },
     setResumeAvailable(available) {
       resumeLink.hidden = !available;
