@@ -380,6 +380,16 @@ describe('contact channels and embedded booking', () => {
     expect(query(shadow, '.kw-booking-subheading').textContent).toBe(
       'Property address',
     );
+    const placeholders = [
+      ...shadow.querySelectorAll<HTMLInputElement>('.kw-booking-form input'),
+    ]
+      .filter((input) => input.type !== 'checkbox')
+      .map((input) => input.placeholder);
+    expect(placeholders).toHaveLength(8);
+    expect(placeholders.every(Boolean)).toBe(true);
+    expect(
+      query<HTMLTextAreaElement>(shadow, '#kw-book-notes').placeholder,
+    ).not.toBe('');
     next(shadow).click();
     expect(headingText(shadow)).toBe('How do we contact you?');
     type(shadow, 'kw-book-street', '12 Ridge Rd');

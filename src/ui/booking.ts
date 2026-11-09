@@ -270,24 +270,28 @@ export function createBookingView(handlers: {
     const street = createField({
       id: 'kw-book-street',
       label: 'Street address',
+      placeholder: 'Enter your street address',
       autocomplete: 'address-line1',
       required: true,
     });
     const city = createField({
       id: 'kw-book-city',
       label: 'City',
+      placeholder: 'Enter your city',
       autocomplete: 'address-level2',
       required: true,
     });
     const region = createField({
       id: 'kw-book-state',
       label: 'State',
+      placeholder: 'State',
       autocomplete: 'address-level1',
       required: true,
     });
     const postal = createField({
       id: 'kw-book-postal',
       label: 'ZIP / Postal code',
+      placeholder: 'ZIP code',
       autocomplete: 'postal-code',
       required: true,
     });
@@ -509,6 +513,7 @@ export function createBookingView(handlers: {
     const first = createField({
       id: 'kw-book-first',
       label: 'First name',
+      placeholder: 'First name',
       autocomplete: 'given-name',
       required: true,
       pattern: '.*\\S.*',
@@ -516,6 +521,7 @@ export function createBookingView(handlers: {
     const last = createField({
       id: 'kw-book-last',
       label: 'Last name',
+      placeholder: 'Last name',
       autocomplete: 'family-name',
       required: true,
       pattern: '.*\\S.*',
@@ -523,6 +529,7 @@ export function createBookingView(handlers: {
     const phone = createField({
       id: 'kw-book-phone',
       label: 'Mobile phone',
+      placeholder: 'Enter your mobile number',
       type: 'tel',
       autocomplete: 'tel',
       required: config.requirePhone,
@@ -532,6 +539,7 @@ export function createBookingView(handlers: {
     const email = createField({
       id: 'kw-book-email',
       label: 'Email address',
+      placeholder: 'Enter your email address',
       type: 'email',
       autocomplete: 'email',
       required: config.requireEmail,
