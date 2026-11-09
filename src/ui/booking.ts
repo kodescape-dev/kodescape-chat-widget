@@ -9,7 +9,7 @@ import type {
 import { createField } from './lead-capture';
 
 export type BookingStep =
-  'service' | 'address' | 'schedule' | 'contact' | 'review' | 'done';
+  'service' | 'schedule' | 'contact' | 'review' | 'done';
 
 export interface BookingViewHandle {
   el: HTMLElement;
@@ -64,10 +64,9 @@ function emptyState() {
 }
 
 function durationLabel(minutes: number): string {
-  if (minutes < 60) return `${minutes} min`;
-  const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return `${hours} hr${rest ? ` ${rest} min` : ''}`;
+  if (minutes % 60 !== 0) return `${minutes} minutes`;
+  const hours = minutes / 60;
+  return `${hours} hour${hours === 1 ? '' : 's'}`;
 }
 
 export function createBookingView(handlers: {
@@ -118,15 +117,10 @@ export function createBookingView(handlers: {
   let activeForm: HTMLFormElement | null = null;
   // Survives the re-render that follows reloading times after a lost slot.
   let scheduleNotice = '';
+  let durationMinutes = 60;
 
   function steps(): BookingStep[] {
-    return [
-      'service',
-      ...(config?.requireAddress ? (['address'] as const) : []),
-      'schedule',
-      'contact',
-      'review',
-    ];
+    return ['service', 'schedule', 'contact', 'review'];
   }
 
   function selectedService() {
@@ -261,23 +255,13 @@ export function createBookingView(handlers: {
       option.classList.toggle('kw-service--selected', input.checked);
       const text = node('span', 'kw-service-text');
       text.append(node('span', 'kw-service-name', service.name));
-      text.append(
-        node(
-          'span',
-          'kw-service-meta',
-          [service.description, durationLabel(service.durationMinutes)]
-            .filter(Boolean)
-            .join(' · '),
-        ),
-      );
+      if (service.description)
+        text.append(node('span', 'kw-service-meta', service.description));
       const check = node('span', 'kw-service-check');
       check.innerHTML = CHECK_ICON;
       option.append(input, text, check);
       input.addEventListener('change', () => {
-        if (state.serviceId !== service.id) {
-          state.serviceId = service.id;
-          resetAvailability();
-        }
+        state.serviceId = service.id;
         list
           .querySelectorAll('.kw-service')
           .forEach((item) =>
@@ -290,9 +274,7 @@ export function createBookingView(handlers: {
     content.append(list);
   }
 
-  function renderAddress(): void {
-    heading('Where is the property?');
-    const form = node('form', 'kw-booking-form');
+  function addressFields(): HTMLElement[] {
     const street = createField({
       id: 'kw-book-street',
       label: 'Street address',
@@ -335,9 +317,13 @@ export function createBookingView(handlers: {
     bindField(notes, state.address.notes, (v) => (state.address.notes = v));
     const row = node('div', 'kw-field-row');
     row.append(region.wrap, postal.wrap);
-    form.append(street.wrap, city.wrap, row, notes.wrap);
-    activeForm = form;
-    content.append(form);
+    return [
+      node('h3', 'kw-booking-subheading', 'Property address'),
+      street.wrap,
+      city.wrap,
+      row,
+      notes.wrap,
+    ];
   }
 
   async function loadAvailability(): Promise<void> {
@@ -354,6 +340,7 @@ export function createBookingView(handlers: {
       if (run !== availabilityRun) return;
       days = [...days, ...page.days];
       lastDate = page.lastDate;
+      durationMinutes = page.durationMinutes;
       availabilityStatus = 'idle';
       if (!state.date)
         state.date =
@@ -595,6 +582,7 @@ export function createBookingView(handlers: {
       row,
       phone.wrap,
       email.wrap,
+      ...(config.requireAddress ? addressFields() : []),
       consent,
       node(
         'p',
@@ -626,7 +614,7 @@ export function createBookingView(handlers: {
     content.append(
       summary([
         ['Service', service.name],
-        ['Duration', durationLabel(service.durationMinutes)],
+        ['Duration', durationLabel(durationMinutes)],
         ['Date', formatDay(state.startAt)],
         ['Time', `${formatTime(state.startAt)} (${timeZoneLabel()})`],
         ['Address', config.requireAddress ? addressLine(address) : ''],
@@ -648,6 +636,7 @@ export function createBookingView(handlers: {
         ['Service', result.serviceName],
         ['Date', formatDay(result.startAt)],
         ['Time', `${formatTime(result.startAt)} (${timeZoneLabel()})`],
+        ['Duration', durationLabel(result.durationMinutes)],
         ['Address', result.address ? addressLine(result.address) : ''],
         ['Reference', result.reference],
       ]),
@@ -680,7 +669,6 @@ export function createBookingView(handlers: {
     showError(step === 'schedule' ? scheduleNotice : '');
     if (!config) return;
     if (step === 'service') renderService();
-    else if (step === 'address') renderAddress();
     else if (step === 'schedule') renderSchedule();
     else if (step === 'contact') renderContact();
     else if (step === 'review') renderReview();
@@ -806,7 +794,7 @@ export function createBookingView(handlers: {
         smsConsent: false,
       };
       void (async () => {
-        if (target !== 'service' && target !== 'address') {
+        if (target !== 'service') {
           await loadAvailability();
           if (run !== previewRun) return;
           state.startAt =
@@ -817,8 +805,7 @@ export function createBookingView(handlers: {
         if (target === 'done')
           result = await handlers.provider.createAppointment(buildRequest());
         if (run !== previewRun) return;
-        step =
-          target === 'address' && !config?.requireAddress ? 'service' : target;
+        step = target;
         render();
       })();
     },

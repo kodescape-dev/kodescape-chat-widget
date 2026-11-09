@@ -203,7 +203,6 @@ export interface BookingServiceOption {
   id: string;
   name: string;
   description: string;
-  durationMinutes: number;
 }
 
 export interface EmbeddedBookingChannel {

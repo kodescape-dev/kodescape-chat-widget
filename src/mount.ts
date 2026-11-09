@@ -1229,10 +1229,7 @@ function previewBookingProvider(
     return channel?.mode === 'embedded' ? channel : null;
   };
   return {
-    getAvailability(serviceId, from): Promise<BookingAvailability> {
-      const durationMinutes =
-        booking()?.services.find((service) => service.id === serviceId)
-          ?.durationMinutes ?? 60;
+    getAvailability(_serviceId, from): Promise<BookingAvailability> {
       const start = from ? new Date(`${from}T00:00:00Z`) : new Date();
       const days = Array.from({ length: 14 }, (_, index) => {
         const day = new Date(start.getTime() + (index + 1) * 86_400_000);
@@ -1250,7 +1247,7 @@ function previewBookingProvider(
       });
       return Promise.resolve({
         timeZone: booking()?.timeZone ?? 'UTC',
-        durationMinutes,
+        durationMinutes: 60,
         lastDate: days[days.length - 1].date,
         days,
       });
@@ -1262,7 +1259,7 @@ function previewBookingProvider(
       return Promise.resolve({
         reference: 'BK-PREVIEW',
         serviceName: service?.name ?? 'Service',
-        durationMinutes: service?.durationMinutes ?? 60,
+        durationMinutes: 60,
         startAt: request.startAt,
         timeZone: booking()?.timeZone ?? 'UTC',
         address: request.address ?? null,

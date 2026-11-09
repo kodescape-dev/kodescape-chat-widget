@@ -368,10 +368,12 @@ with `ERROR packages field missing or empty`. If the build log still shows
   `mailto:`, or the configured URL). An external booking URL on another origin
   opens in a new tab; a same-site URL or path stays in the current tab.
 - Embedded booking is a fourth view, `booking`, in `ui/window.ts`
-  (`ui/booking.ts`). Steps: service, address (only when required), schedule,
-  contact, review, then a confirmation shown only after the API accepts the
-  booking. Its state lives in the view, so Back, Home, and minimize keep what
-  the visitor entered.
+  (`ui/booking.ts`). Steps: service, date and time, contact (with the property
+  address when required), review, then a confirmation shown only after the API
+  accepts the booking. Every appointment is 60 minutes; the widget shows
+  "1 hour" from the API's `durationMinutes` and offers no length choice. Its
+  state lives in the view, so Back, Home, and minimize keep what the visitor
+  entered, and changing the service keeps the chosen time.
 - Booking never uses the chat session, socket, or store. It talks to the API
   through a `BookingProvider` with `siteId` only
   (`GET /public/chat/booking/availability`,

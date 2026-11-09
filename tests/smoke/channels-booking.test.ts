@@ -55,12 +55,11 @@ const embeddedBooking = {
   confirmationText: 'See you soon.',
   timeZone: 'America/New_York',
   services: [
-    { id: 'leak', name: 'Leak Repair', description: '', durationMinutes: 60 },
+    { id: 'leak', name: 'Leak Repair', description: '' },
     {
       id: 'gutters',
       name: 'Gutter Services',
       description: 'Cleaning and repair',
-      durationMinutes: 90,
     },
   ],
   requireAddress: true,
@@ -208,11 +207,6 @@ describe('contact channels and embedded booking', () => {
     query<HTMLElement>(shadow, '.kw-channel').click();
     query<HTMLInputElement>(shadow, '.kw-service-input').click();
     next(shadow).click();
-    type(shadow, 'kw-book-street', '12 Ridge Rd');
-    type(shadow, 'kw-book-city', 'Albany');
-    type(shadow, 'kw-book-state', 'NY');
-    type(shadow, 'kw-book-postal', '12203');
-    next(shadow).click();
     await flush();
     query<HTMLButtonElement>(shadow, '.kw-slot:not(:disabled)').click();
     next(shadow).click();
@@ -220,6 +214,10 @@ describe('contact channels and embedded booking', () => {
     type(shadow, 'kw-book-last', 'Lovelace');
     type(shadow, 'kw-book-phone', '(555) 010-2030');
     type(shadow, 'kw-book-email', 'ada@example.com');
+    type(shadow, 'kw-book-street', '12 Ridge Rd');
+    type(shadow, 'kw-book-city', 'Albany');
+    type(shadow, 'kw-book-state', 'NY');
+    type(shadow, 'kw-book-postal', '12203');
     next(shadow).click();
   }
 
@@ -320,6 +318,12 @@ describe('contact channels and embedded booking', () => {
     expect(query(shadow, '.kw-panel').classList).toContain('kw-panel--booking');
     expect(headingText(shadow)).toBe('How can we help you?');
     expect(shadow.querySelectorAll('.kw-service')).toHaveLength(2);
+    expect(query(shadow, '.kw-booking-step-label').textContent).toBe(
+      'Step 1 of 4',
+    );
+    expect(query(shadow, '.kw-service-list').textContent).not.toMatch(
+      /hour|hr|min/,
+    );
     expect(next(shadow).disabled).toBe(true);
 
     query<HTMLInputElement>(shadow, '.kw-service-input').click();
@@ -327,15 +331,6 @@ describe('contact channels and embedded booking', () => {
       'kw-service--selected',
     );
     expect(next(shadow).disabled).toBe(false);
-    next(shadow).click();
-
-    expect(headingText(shadow)).toBe('Where is the property?');
-    next(shadow).click();
-    expect(headingText(shadow)).toBe('Where is the property?');
-    type(shadow, 'kw-book-street', '12 Ridge Rd');
-    type(shadow, 'kw-book-city', 'Albany');
-    type(shadow, 'kw-book-state', 'NY');
-    type(shadow, 'kw-book-postal', '12203');
     next(shadow).click();
     await flush();
 
@@ -382,13 +377,22 @@ describe('contact channels and embedded booking', () => {
     type(shadow, 'kw-book-last', 'Lovelace');
     type(shadow, 'kw-book-phone', '(555) 010-2030');
     type(shadow, 'kw-book-email', 'ada@example.com');
+    expect(query(shadow, '.kw-booking-subheading').textContent).toBe(
+      'Property address',
+    );
+    next(shadow).click();
+    expect(headingText(shadow)).toBe('How do we contact you?');
+    type(shadow, 'kw-book-street', '12 Ridge Rd');
+    type(shadow, 'kw-book-city', 'Albany');
+    type(shadow, 'kw-book-state', 'NY');
+    type(shadow, 'kw-book-postal', '12203');
     next(shadow).click();
 
     expect(headingText(shadow)).toBe('Confirm Your Appointment');
     const review = query(shadow, '.kw-summary').textContent ?? '';
     for (const expected of [
       'Leak Repair',
-      '1 hr',
+      '1 hour',
       'Thursday, November 12',
       'Eastern',
       '12 Ridge Rd, Albany, NY 12203',
@@ -418,7 +422,9 @@ describe('contact channels and embedded booking', () => {
       address: { street: '12 Ridge Rd', postalCode: '12203' },
     });
     expect(headingText(shadow)).toBe("You're booked");
-    expect(query(shadow, '.kw-summary').textContent).toContain('BK-TEST42');
+    const confirmation = query(shadow, '.kw-summary').textContent ?? '';
+    for (const expected of ['BK-TEST42', '1 hour', 'Thursday, November 12'])
+      expect(confirmation).toContain(expected);
     expect(query(shadow, '.kw-booking-nav').hidden).toBe(true);
 
     query<HTMLButtonElement>(
@@ -439,25 +445,32 @@ describe('contact channels and embedded booking', () => {
     await reachReview(shadow);
     back(shadow).click();
     expect(query<HTMLInputElement>(shadow, '#kw-book-first').value).toBe('Ada');
-    back(shadow).click();
-    expect(query(shadow, '.kw-slot[aria-pressed="true"]').textContent).toMatch(
-      /9:00\sAM/,
-    );
-    back(shadow).click();
     expect(query<HTMLInputElement>(shadow, '#kw-book-street').value).toBe(
       '12 Ridge Rd',
     );
+    back(shadow).click();
+    const pressedSlot = () =>
+      query(shadow, '.kw-slot[aria-pressed="true"]').textContent;
+    expect(pressedSlot()).toMatch(/9:00\sAM/);
+    back(shadow).click();
+    expect(query(shadow, '.kw-service').classList).toContain(
+      'kw-service--selected',
+    );
+    shadow.querySelectorAll<HTMLInputElement>('.kw-service-input')[1].click();
+    next(shadow).click();
+    expect(pressedSlot()).toMatch(/9:00\sAM/);
 
     launcher.click();
     launcher.click();
     await flush();
     await flush();
     expect(query(shadow, '.kw-panel').hidden).toBe(false);
-    expect(headingText(shadow)).toBe('Where is the property?');
+    expect(headingText(shadow)).toBe('When would you like to schedule?');
 
     query<HTMLButtonElement>(shadow, '.kw-booking-top .kw-lead-back').click();
     expect(query(shadow, '.kw-panel').classList).toContain('kw-panel--home');
     query<HTMLButtonElement>(shadow, 'button.kw-channel').click();
+    next(shadow).click();
     expect(query<HTMLInputElement>(shadow, '#kw-book-city').value).toBe(
       'Albany',
     );

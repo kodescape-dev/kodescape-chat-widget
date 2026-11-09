@@ -3204,6 +3204,13 @@ textarea.kw-field-input {
   flex-direction: column;
 }
 
+.kw-booking-subheading {
+  margin: 8px 0 12px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--kw-ink-900);
+}
+
 .kw-field-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
