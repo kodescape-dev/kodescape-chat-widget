@@ -2,11 +2,14 @@ import { createComposer } from './composer';
 import type { ComposerSubmission } from './composer';
 import type {
   BookingProvider,
+  ContactRequestKind,
+  ContactRequestProvider,
   MessageAttachment,
   MessageReply,
   WidgetChannels,
 } from '../core/types';
 import { createBookingView } from './booking';
+import { createContactFormView } from './contact-form';
 import type { BookingStep } from './booking';
 import { createTypingIndicator } from './typing-indicator';
 import { createHomeView } from './home';
@@ -32,7 +35,8 @@ export interface ChatWindowHandle {
   setStarters(items: string[]): void;
   setChannels(channels: WidgetChannels | null | undefined): void;
   showBooking(previewStep?: BookingStep): void;
-  isBookingActive(): boolean;
+  showContactForm(kind: ContactRequestKind, previewSent?: boolean): void;
+  isChannelViewActive(): boolean;
   setSupportIdentity(
     name: string,
     subtitle: string,
@@ -66,7 +70,7 @@ export interface ChatWindowHandle {
   destroy(): void;
 }
 
-type View = 'home' | 'lead-capture' | 'chat' | 'booking';
+type View = 'home' | 'lead-capture' | 'chat' | 'booking' | 'contact';
 
 const FOCUSABLE_SELECTOR =
   'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
@@ -93,6 +97,7 @@ export function createChatWindow(handlers: {
   onContactPromptDismiss: () => void;
   onNotificationsChange: (enabled: boolean) => void;
   bookingProvider: BookingProvider;
+  requestProvider: ContactRequestProvider;
 }): ChatWindowHandle {
   const panel = document.createElement('div');
   panel.className = 'kw-panel';
@@ -261,6 +266,19 @@ export function createChatWindow(handlers: {
       setView('booking');
       booking.focus();
     },
+    onRequest: (kind) => {
+      contactForm.open(kind);
+      setView('contact');
+      contactForm.focus();
+    },
+  });
+
+  const contactForm = createContactFormView({
+    provider: handlers.requestProvider,
+    onExit: () => {
+      setView('home');
+      home.focusPrimary();
+    },
   });
 
   const booking = createBookingView({
@@ -302,7 +320,7 @@ export function createChatWindow(handlers: {
 
   const body = document.createElement('div');
   body.className = 'kw-body';
-  body.append(home.el, leadCapture.el, chatView, booking.el);
+  body.append(home.el, leadCapture.el, chatView, booking.el, contactForm.el);
 
   panel.append(header, headerMenu, body);
 
@@ -327,8 +345,13 @@ export function createChatWindow(handlers: {
     options: { focusLeadCapture?: boolean } = {},
   ): void {
     currentView = view;
-    panel.classList.toggle('kw-panel--booking', view === 'booking');
+    panel.classList.toggle(
+      'kw-panel--booking',
+      view === 'booking' || view === 'contact',
+    );
+    panel.classList.toggle('kw-panel--contact', view === 'contact');
     booking.el.hidden = view !== 'booking';
+    contactForm.el.hidden = view !== 'contact';
     homeButton.hidden = view !== 'chat' || !hasChannels;
     panel.classList.toggle('kw-panel--home', view === 'home');
     panel.classList.toggle('kw-panel--lead-capture', view === 'lead-capture');
@@ -392,14 +415,25 @@ export function createChatWindow(handlers: {
       const embedded =
         channels?.booking?.mode === 'embedded' ? channels.booking : null;
       booking.configure(embedded);
+      contactForm.configure(channels);
       if (!embedded && currentView === 'booking') setView('home');
+      if (
+        currentView === 'contact' &&
+        !(channels?.text || channels?.call || channels?.email)
+      )
+        setView('home');
     },
     showBooking(previewStep) {
       setView('booking');
       if (previewStep) booking.preview(previewStep);
     },
-    isBookingActive() {
-      return currentView === 'booking';
+    showContactForm(kind, previewSent) {
+      setView('contact');
+      if (previewSent === undefined) contactForm.open(kind);
+      else contactForm.preview(kind, previewSent);
+    },
+    isChannelViewActive() {
+      return currentView === 'booking' || currentView === 'contact';
     },
     setSupportIdentity(name, subtitle, avatarUrl) {
       title.textContent = name || 'Chat with us';

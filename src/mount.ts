@@ -8,6 +8,7 @@ import type {
   AppointmentResult,
   BookingAvailability,
   BookingProvider,
+  ContactRequestProvider,
   DeviceDisplaySettings,
   MessageAttachment,
   TypingEvent,
@@ -49,7 +50,11 @@ export type PreviewState =
   | 'booking-schedule'
   | 'booking-contact'
   | 'booking-review'
-  | 'booking-confirmed';
+  | 'booking-confirmed'
+  | 'text-form'
+  | 'call-form'
+  | 'email-form'
+  | 'request-sent';
 
 const PREVIEW_BOOKING_STEPS = {
   'booking-services': 'service',
@@ -294,6 +299,12 @@ export function mount(options: MountOptions): MountedWidget {
       soundNotificationsEnabled =
         currentSettings?.incomingMessageSound === true && enabled;
     },
+    requestProvider: options.preview
+      ? previewRequestProvider(() => currentSettings)
+      : {
+          submit: (payload) =>
+            api.createContactRequest(options.siteId, payload),
+        },
     bookingProvider: options.preview
       ? previewBookingProvider(() => currentSettings)
       : {
@@ -374,7 +385,7 @@ export function mount(options: MountOptions): MountedWidget {
       chatWindow.setVisible(true);
       return;
     }
-    if (chatWindow.isBookingActive()) {
+    if (chatWindow.isChannelViewActive()) {
       chatWindow.setVisible(true);
       return;
     }
@@ -1131,7 +1142,20 @@ export function mount(options: MountOptions): MountedWidget {
             message.state as keyof typeof PREVIEW_BOOKING_STEPS
           ]
         : null;
-    if (bookingStep) {
+    const channels = message.settings.channels;
+    const formKind =
+      message.state === 'request-sent'
+        ? (['text', 'call', 'email'] as const).find((item) => channels?.[item])
+        : message.state === 'text-form' ||
+            message.state === 'call-form' ||
+            message.state === 'email-form'
+          ? (message.state.slice(0, -5) as 'text' | 'call' | 'email')
+          : undefined;
+    if (formKind) {
+      if (channels?.[formKind])
+        chatWindow.showContactForm(formKind, message.state === 'request-sent');
+      else chatWindow.showHome();
+    } else if (bookingStep) {
       if (message.settings.channels?.booking?.mode === 'embedded')
         chatWindow.showBooking(bookingStep);
       else chatWindow.showHome();
@@ -1219,8 +1243,21 @@ export function mount(options: MountOptions): MountedWidget {
   };
 }
 
-// Admin preview only: sample times so the booking screens can be designed
-// without touching the API. Nothing here is ever saved or sent.
+// Admin preview only: sample data so the booking and request screens can be
+// designed without touching the API. Nothing here is ever saved or sent.
+function previewRequestProvider(
+  settings: () => WidgetSettings | null,
+): ContactRequestProvider {
+  return {
+    submit: (payload) =>
+      Promise.resolve({
+        reference: 'REQ-PREVIEW',
+        confirmationText:
+          settings()?.channels?.[payload.channel]?.confirmationText ?? '',
+      }),
+  };
+}
+
 function previewBookingProvider(
   settings: () => WidgetSettings | null,
 ): BookingProvider {

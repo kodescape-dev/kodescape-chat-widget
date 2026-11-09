@@ -1,4 +1,4 @@
-import type { WidgetChannels } from '../core/types';
+import type { ContactRequestKind, WidgetChannels } from '../core/types';
 import { createPoweredBy } from './branding';
 
 export interface HomeViewHandle {
@@ -27,9 +27,7 @@ const CHANNEL_ICONS = {
     '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><rect x="2.5" y="4.5" width="19" height="15" rx="2.5" stroke="currentColor" stroke-width="1.8"/><path d="m3 7 9 6.5L21 7" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>',
 } as const;
 
-function dialable(phone: string): string {
-  return phone.replace(/[^+\d]/g, '');
-}
+const DEFAULT_LABELS = { text: 'Text', call: 'Call', email: 'Email' } as const;
 
 const STARTER_ICONS = {
   rocket:
@@ -49,6 +47,7 @@ export function createHomeView(handlers: {
   onContinue: () => void;
   onStarter: (text: string) => void;
   onBook: () => void;
+  onRequest: (kind: ContactRequestKind) => void;
 }): HomeViewHandle {
   const el = document.createElement('div');
   el.className = 'kw-home';
@@ -184,20 +183,15 @@ export function createHomeView(handlers: {
           link.rel = 'noopener noreferrer';
         }
       }
-      if (text) {
-        addChannel(
-          'text',
-          text.label || 'Text',
-          `sms:${dialable(text.phone)}${text.message ? `?&body=${encodeURIComponent(text.message)}` : ''}`,
-        );
-      }
-      if (call)
-        addChannel('call', call.label || 'Call', `tel:${dialable(call.phone)}`);
-      if (email) {
-        addChannel(
-          'email',
-          email.label || 'Email',
-          `mailto:${email.address}${email.subject ? `?subject=${encodeURIComponent(email.subject)}` : ''}`,
+      for (const [kind, form] of [
+        ['text', text],
+        ['call', call],
+        ['email', email],
+      ] as const) {
+        if (!form) continue;
+        addChannel(kind, form.label || DEFAULT_LABELS[kind]).addEventListener(
+          'click',
+          () => handlers.onRequest(kind),
         );
       }
       channelList.hidden = channelList.childElementCount === 0;

@@ -2,6 +2,8 @@ import type {
   ApiEnvelope,
   AppointmentRequest,
   AppointmentResult,
+  ContactRequestPayload,
+  ContactRequestResult,
   BookingAvailability,
   ChatSession,
   ContextPayload,
@@ -166,6 +168,20 @@ export class ChatApi {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${accessToken}`,
         },
+        body: JSON.stringify(payload),
+      },
+    );
+  }
+
+  createContactRequest(
+    siteId: string,
+    payload: ContactRequestPayload,
+  ): Promise<ContactRequestResult> {
+    return request<ContactRequestResult>(
+      `${this.apiBaseUrl}/api/v1/public/chat/requests?siteId=${encodeURIComponent(siteId)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       },
     );

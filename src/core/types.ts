@@ -218,14 +218,47 @@ export interface EmbeddedBookingChannel {
   requirePhone: boolean;
 }
 
+export type ContactRequestKind = 'text' | 'call' | 'email';
+
+export interface ContactFormChannel {
+  label: string;
+  heading: string;
+  description: string;
+  confirmationText: string;
+  requirePhone?: boolean;
+}
+
 export interface WidgetChannels {
   booking:
     | { mode: 'external'; label: string; url: string }
     | EmbeddedBookingChannel
     | null;
-  text: { label: string; phone: string; message: string } | null;
-  call: { label: string; phone: string } | null;
-  email: { label: string; address: string; subject: string } | null;
+  text: ContactFormChannel | null;
+  call: ContactFormChannel | null;
+  email: ContactFormChannel | null;
+  services?: Array<{ id: string; name: string }>;
+}
+
+export interface ContactRequestPayload {
+  clientRequestId: string;
+  channel: ContactRequestKind;
+  firstName: string;
+  lastName: string;
+  phone?: string;
+  email?: string;
+  smsConsent: boolean;
+  serviceId?: string;
+  message?: string;
+  pageUrl: string;
+}
+
+export interface ContactRequestResult {
+  reference: string;
+  confirmationText: string;
+}
+
+export interface ContactRequestProvider {
+  submit(payload: ContactRequestPayload): Promise<ContactRequestResult>;
 }
 
 export interface BookingAvailability {

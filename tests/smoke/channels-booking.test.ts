@@ -88,6 +88,13 @@ const availability = {
   ],
 };
 
+const formChannel = (label: string) => ({
+  label,
+  heading: `${label} heading`,
+  description: '',
+  confirmationText: 'Thanks!',
+});
+
 function widgetSettings(channels?: unknown) {
   return {
     name: 'Test Widget',
@@ -262,13 +269,9 @@ describe('contact channels and embedded booking', () => {
         label: 'Book a call',
         url: 'https://cal.example.com/acme',
       },
-      text: { label: 'Text', phone: '+1 (555) 010-2030', message: 'Hi there' },
+      text: formChannel('Text'),
       call: null,
-      email: {
-        label: 'Email',
-        address: 'hi@acme.test',
-        subject: 'Web inquiry',
-      },
+      email: formChannel('Email'),
     });
     const tiles = [
       ...shadow.querySelectorAll<HTMLAnchorElement>('.kw-channel'),
@@ -281,12 +284,8 @@ describe('contact channels and embedded booking', () => {
     expect(tiles[0].href).toBe('https://cal.example.com/acme');
     expect(tiles[0].target).toBe('_blank');
     expect(tiles[0].rel).toContain('noopener');
-    expect(tiles[1].getAttribute('href')).toBe(
-      'sms:+15550102030?&body=Hi%20there',
-    );
-    expect(tiles[2].getAttribute('href')).toBe(
-      'mailto:hi@acme.test?subject=Web%20inquiry',
-    );
+    expect(tiles[1].tagName).toBe('BUTTON');
+    expect(tiles[2].tagName).toBe('BUTTON');
     expect(query(shadow, '.kw-home .kw-btn-primary').hidden).toBe(false);
     widget.destroy();
   });
@@ -295,7 +294,7 @@ describe('contact channels and embedded booking', () => {
     const { widget, shadow } = await open({
       booking: { mode: 'external', label: 'Book', url: '/book-a-call' },
       text: null,
-      call: { label: 'Call', phone: '555-0100' },
+      call: formChannel('Call'),
       email: null,
     });
     const [book, call] = [
@@ -303,7 +302,8 @@ describe('contact channels and embedded booking', () => {
     ];
     expect(book.getAttribute('href')).toBe('/book-a-call');
     expect(book.target).toBe('');
-    expect(call.getAttribute('href')).toBe('tel:5550100');
+    expect(call.tagName).toBe('BUTTON');
+    expect(call.hasAttribute('href')).toBe(false);
     widget.destroy();
   });
 
