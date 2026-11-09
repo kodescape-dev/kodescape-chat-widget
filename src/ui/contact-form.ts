@@ -6,6 +6,7 @@ import type {
   ContactRequestResult,
   WidgetChannels,
 } from '../core/types';
+import { createDraftStore, str } from '../core/draft';
 import { createField } from './lead-capture';
 
 export interface ContactFormViewHandle {
@@ -54,10 +55,28 @@ function emptyState() {
   };
 }
 
+function restoreState(saved: Record<string, unknown> | null) {
+  const state = emptyState();
+  if (!saved) return state;
+  state.firstName = str(saved.firstName);
+  state.lastName = str(saved.lastName);
+  state.phone = str(saved.phone);
+  state.email = str(saved.email);
+  state.serviceId = str(saved.serviceId);
+  state.message = str(saved.message);
+  state.smsConsent =
+    typeof saved.smsConsent === 'boolean' ? saved.smsConsent : null;
+  return state;
+}
+
 export function createContactFormView(handlers: {
   provider: ContactRequestProvider;
   onExit: () => void;
+  draftKey?: string | null;
 }): ContactFormViewHandle {
+  const draft = createDraftStore(
+    handlers.draftKey ? `${handlers.draftKey}:contact` : null,
+  );
   const el = node('div', 'kw-booking kw-contact');
   const content = node('div', 'kw-booking-content');
   const errorEl = node('p', 'kw-booking-error');
@@ -73,7 +92,7 @@ export function createContactFormView(handlers: {
 
   let channels: WidgetChannels | null = null;
   let kind: ContactRequestKind = 'text';
-  let state = emptyState();
+  let state = restoreState(draft.load());
   let requestId = crypto.randomUUID();
   let submitting = false;
   let result: ContactRequestResult | null = null;
@@ -84,7 +103,12 @@ export function createContactFormView(handlers: {
     return channels?.[kind] ?? null;
   }
 
+  function persist(): void {
+    draft.save(state);
+  }
+
   function reset(): void {
+    draft.clear();
     state = emptyState();
     requestId = crypto.randomUUID();
     result = null;
@@ -117,6 +141,7 @@ export function createContactFormView(handlers: {
     field.input.value = state[key];
     field.input.addEventListener('input', () => {
       state[key] = field.input.value;
+      persist();
     });
   }
 
@@ -137,6 +162,7 @@ export function createContactFormView(handlers: {
       input.checked = state.smsConsent === value;
       input.addEventListener('change', () => {
         state.smsConsent = value;
+        persist();
       });
       option.append(input, node('span', 'kw-choice-label', label));
       options.append(option);
@@ -166,6 +192,7 @@ export function createContactFormView(handlers: {
     select.value = state.serviceId;
     select.addEventListener('change', () => {
       state.serviceId = select.value;
+      persist();
     });
     wrap.append(label, select);
     return wrap;
@@ -314,6 +341,7 @@ export function createContactFormView(handlers: {
     try {
       result = await handlers.provider.submit(buildPayload());
       submitting = false;
+      draft.clear();
       render();
       content.querySelector<HTMLElement>('.kw-booking-heading')?.focus();
     } catch (error) {

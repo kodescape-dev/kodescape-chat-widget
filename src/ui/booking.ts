@@ -6,6 +6,7 @@ import type {
   BookingProvider,
   EmbeddedBookingChannel,
 } from '../core/types';
+import { createDraftStore, str } from '../core/draft';
 import { createField } from './lead-capture';
 
 export type BookingStep =
@@ -71,6 +72,28 @@ function emptyState() {
   };
 }
 
+function restoreState(saved: Record<string, unknown> | null) {
+  const state = emptyState();
+  if (!saved) return state;
+  const address = (saved.address ?? {}) as Record<string, unknown>;
+  const contact = (saved.contact ?? {}) as Record<string, unknown>;
+  state.serviceId = str(saved.serviceId);
+  state.date = str(saved.date);
+  state.startAt = str(saved.startAt);
+  if (saved.filter === 'morning' || saved.filter === 'afternoon')
+    state.filter = saved.filter;
+  for (const key of Object.keys(state.address) as Array<
+    keyof typeof state.address
+  >)
+    state.address[key] = str(address[key]);
+  state.contact.firstName = str(contact.firstName);
+  state.contact.lastName = str(contact.lastName);
+  state.contact.phone = str(contact.phone);
+  state.contact.email = str(contact.email);
+  state.contact.smsConsent = contact.smsConsent === true;
+  return state;
+}
+
 function durationLabel(minutes: number): string {
   if (minutes % 60 !== 0) return `${minutes} minutes`;
   const hours = minutes / 60;
@@ -80,7 +103,11 @@ function durationLabel(minutes: number): string {
 export function createBookingView(handlers: {
   provider: BookingProvider;
   onExit: () => void;
+  draftKey?: string | null;
 }): BookingViewHandle {
+  const draft = createDraftStore(
+    handlers.draftKey ? `${handlers.draftKey}:booking` : null,
+  );
   const el = node('div', 'kw-booking');
 
   const content = node('div', 'kw-booking-content');
@@ -99,7 +126,7 @@ export function createBookingView(handlers: {
 
   let config: EmbeddedBookingChannel | null = null;
   let step: BookingStep = 'service';
-  let state = emptyState();
+  let state = restoreState(draft.load());
   let days: AvailabilityDay[] = [];
   let lastDate = '';
   let availabilityStatus: 'idle' | 'loading' | 'error' = 'idle';
@@ -131,7 +158,12 @@ export function createBookingView(handlers: {
     requestId = crypto.randomUUID();
   }
 
+  function persist(): void {
+    draft.save(state);
+  }
+
   function reset(): void {
+    draft.clear();
     state = emptyState();
     result = null;
     step = 'service';
@@ -228,7 +260,10 @@ export function createBookingView(handlers: {
     onChange: (value: string) => void,
   ): void {
     field.input.value = value;
-    field.input.addEventListener('input', () => onChange(field.input.value));
+    field.input.addEventListener('input', () => {
+      onChange(field.input.value);
+      persist();
+    });
   }
 
   function renderService(): void {
@@ -254,6 +289,7 @@ export function createBookingView(handlers: {
       option.append(input, text, check);
       input.addEventListener('change', () => {
         state.serviceId = service.id;
+        persist();
         list
           .querySelectorAll('.kw-service')
           .forEach((item) =>
@@ -338,6 +374,11 @@ export function createBookingView(handlers: {
       lastDate = page.lastDate;
       durationMinutes = page.durationMinutes;
       availabilityStatus = 'idle';
+      const chosen = days
+        .flatMap((day) => day.slots)
+        .find((slot) => slot.startAt === state.startAt);
+      if (!chosen?.available) state.startAt = '';
+      if (!days.some((day) => day.date === state.date)) state.date = '';
       if (!state.date)
         state.date =
           days.find((day) => day.slots.some((slot) => slot.available))?.date ??
@@ -396,6 +437,7 @@ export function createBookingView(handlers: {
       card.addEventListener('click', () => {
         state.date = day.date;
         state.startAt = '';
+        persist();
         const offset = strip.scrollLeft;
         render();
         const renewed = content.querySelector('.kw-date-strip');
@@ -456,6 +498,7 @@ export function createBookingView(handlers: {
       button.setAttribute('aria-pressed', String(state.filter === value));
       button.addEventListener('click', () => {
         state.filter = value;
+        persist();
         render();
       });
       filters.append(button);
@@ -492,6 +535,7 @@ export function createBookingView(handlers: {
       );
       button.addEventListener('click', () => {
         state.startAt = slot.startAt;
+        persist();
         scheduleNotice = '';
         showError('');
         grid
@@ -566,9 +610,13 @@ export function createBookingView(handlers: {
     checkbox.checked = state.contact.smsConsent;
     checkbox.addEventListener('change', () => {
       state.contact.smsConsent = checkbox.checked;
+      persist();
     });
+    const box = node('span', 'kw-consent-box');
+    box.innerHTML = CHECK_ICON;
     consent.append(
       checkbox,
+      box,
       node(
         'span',
         'kw-consent-text',
@@ -770,6 +818,7 @@ export function createBookingView(handlers: {
     try {
       result = await handlers.provider.createAppointment(buildRequest());
       submitting = false;
+      draft.clear();
       goTo('done');
       return;
     } catch (error) {

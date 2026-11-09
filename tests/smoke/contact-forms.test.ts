@@ -407,6 +407,84 @@ describe('contact request forms', () => {
     widget.destroy();
   });
 
+  it('keeps a half-filled form across a reload and clears it once the request is sent', async () => {
+    const draftKey = 'kodescape_chat_draft:site-1:contact';
+    const first = await open();
+    tile(first.shadow, 'Text').click();
+    fillPerson(first.shadow);
+    type(first.shadow, 'kw-contact-message', 'Please text me a quote.');
+    first.shadow
+      .querySelectorAll<HTMLInputElement>('input[type="radio"]')[0]
+      .click();
+    const service = query<HTMLSelectElement>(
+      first.shadow,
+      '#kw-contact-service',
+    );
+    service.value = 'gutters';
+    service.dispatchEvent(new Event('change', { bubbles: true }));
+    expect(localStorage.getItem(draftKey)).toContain('Lovelace');
+    first.widget.destroy();
+
+    const { widget, shadow } = await open();
+    tile(shadow, 'Call').click();
+    expect(query<HTMLInputElement>(shadow, '#kw-contact-first').value).toBe(
+      'Ada',
+    );
+    expect(query<HTMLInputElement>(shadow, '#kw-contact-phone').value).toBe(
+      '(555) 010-2030',
+    );
+    expect(
+      query<HTMLTextAreaElement>(shadow, '#kw-contact-message').value,
+    ).toBe('Please text me a quote.');
+    expect(query<HTMLSelectElement>(shadow, '#kw-contact-service').value).toBe(
+      'gutters',
+    );
+    expect(
+      [...shadow.querySelectorAll<HTMLInputElement>('input[type="radio"]')].map(
+        (radio) => radio.checked,
+      ),
+    ).toEqual([true, false]);
+
+    submit(shadow).click();
+    await flush();
+    expect(heading(shadow)).toBe('Callback requested');
+    expect(localStorage.getItem(draftKey)).toBeNull();
+    widget.destroy();
+
+    const fresh = await open();
+    tile(fresh.shadow, 'Text').click();
+    expect(
+      query<HTMLInputElement>(fresh.shadow, '#kw-contact-first').value,
+    ).toBe('');
+    fresh.widget.destroy();
+  });
+
+  it('ignores a draft that is a week old or unreadable', async () => {
+    const draftKey = 'kodescape_chat_draft:site-1:contact';
+    localStorage.setItem(
+      draftKey,
+      JSON.stringify({
+        savedAt: Date.now() - 8 * 24 * 60 * 60 * 1000,
+        value: { firstName: 'Old' },
+      }),
+    );
+    const stale = await open();
+    tile(stale.shadow, 'Text').click();
+    expect(
+      query<HTMLInputElement>(stale.shadow, '#kw-contact-first').value,
+    ).toBe('');
+    expect(localStorage.getItem(draftKey)).toBeNull();
+    stale.widget.destroy();
+
+    localStorage.setItem(draftKey, '{not json');
+    const broken = await open();
+    tile(broken.shadow, 'Text').click();
+    expect(
+      query<HTMLInputElement>(broken.shadow, '#kw-contact-first').value,
+    ).toBe('');
+    broken.widget.destroy();
+  });
+
   it('previews each form and the sent state without calling the API', async () => {
     fetchMock = vi.fn(() => jsonResponse({}));
     vi.stubGlobal('fetch', fetchMock);

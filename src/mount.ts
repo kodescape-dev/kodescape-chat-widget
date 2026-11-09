@@ -299,6 +299,7 @@ export function mount(options: MountOptions): MountedWidget {
       soundNotificationsEnabled =
         currentSettings?.incomingMessageSound === true && enabled;
     },
+    draftKey: options.preview ? null : `kodescape_chat_draft:${options.siteId}`,
     requestProvider: options.preview
       ? previewRequestProvider(() => currentSettings)
       : {

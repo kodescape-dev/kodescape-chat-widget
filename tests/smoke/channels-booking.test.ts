@@ -574,6 +574,114 @@ describe('contact channels and embedded booking', () => {
     widget.destroy();
   });
 
+  it('keeps entered booking details across a reload and clears them after the booking is made', async () => {
+    const settings = {
+      booking: embeddedBooking,
+      text: null,
+      call: null,
+      email: null,
+    };
+    const draftKey = 'kodescape_chat_draft:site-1:booking';
+    const first = await open(settings);
+    await reachReview(first.shadow);
+    back(first.shadow).click();
+    query<HTMLInputElement>(first.shadow, '.kw-consent-input').click();
+    expect(query(first.shadow, '.kw-consent-box svg')).not.toBeNull();
+    expect(localStorage.getItem(draftKey)).toContain('Lovelace');
+    first.widget.destroy();
+
+    const { widget, shadow } = await open(settings);
+    query<HTMLButtonElement>(shadow, 'button.kw-channel').click();
+    expect(query<HTMLInputElement>(shadow, '.kw-service-input').checked).toBe(
+      true,
+    );
+    next(shadow).click();
+    await flush();
+    expect(query(shadow, '.kw-slot[aria-pressed="true"]').textContent).toMatch(
+      /9:00\sAM/,
+    );
+    next(shadow).click();
+    expect(query<HTMLInputElement>(shadow, '#kw-book-first').value).toBe('Ada');
+    expect(query<HTMLInputElement>(shadow, '#kw-book-phone').value).toBe(
+      '(555) 010-2030',
+    );
+    expect(query<HTMLInputElement>(shadow, '#kw-book-street').value).toBe(
+      '12 Ridge Rd',
+    );
+    expect(query<HTMLInputElement>(shadow, '.kw-consent-input').checked).toBe(
+      true,
+    );
+
+    next(shadow).click();
+    next(shadow).click();
+    await flush();
+    expect(headingText(shadow)).toBe("You're booked");
+    expect(localStorage.getItem(draftKey)).toBeNull();
+    widget.destroy();
+
+    const fresh = await open(settings);
+    query<HTMLButtonElement>(fresh.shadow, 'button.kw-channel').click();
+    expect(fresh.shadow.querySelector('.kw-service--selected')).toBeNull();
+    fresh.widget.destroy();
+  });
+
+  it('drops a remembered time that is no longer available and never stores anything in the admin preview', async () => {
+    localStorage.setItem(
+      'kodescape_chat_draft:site-1:booking',
+      JSON.stringify({
+        savedAt: Date.now(),
+        value: {
+          serviceId: 'leak',
+          date: '2026-11-12',
+          startAt: '2026-11-12T15:00:00.000Z',
+        },
+      }),
+    );
+    const { widget, shadow } = await open({
+      booking: embeddedBooking,
+      text: null,
+      call: null,
+      email: null,
+    });
+    query<HTMLButtonElement>(shadow, 'button.kw-channel').click();
+    next(shadow).click();
+    await flush();
+    expect(shadow.querySelector('.kw-slot[aria-pressed="true"]')).toBeNull();
+    expect(next(shadow).disabled).toBe(true);
+    widget.destroy();
+
+    localStorage.clear();
+    stubFetch();
+    const { mount } = await import('../../src/mount');
+    const preview = mount({
+      siteId: 'site-1',
+      target: container,
+      preview: true,
+    });
+    const previewShadow = (container.firstElementChild as HTMLElement)
+      .shadowRoot!;
+    window.dispatchEvent(
+      new MessageEvent('message', {
+        source: window.parent,
+        data: {
+          type: 'kodescape-widget-preview:configure',
+          settings: widgetSettings({
+            booking: embeddedBooking,
+            text: null,
+            call: null,
+            email: null,
+          }),
+          state: 'booking-contact',
+          device: 'desktop',
+        },
+      }),
+    );
+    await flush();
+    type(previewShadow, 'kw-book-first', 'Typed in preview');
+    expect(localStorage.length).toBe(0);
+    preview.destroy();
+  });
+
   it('previews every booking screen without calling the API', async () => {
     stubFetch();
     const { mount } = await import('../../src/mount');

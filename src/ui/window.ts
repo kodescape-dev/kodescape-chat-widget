@@ -98,6 +98,7 @@ export function createChatWindow(handlers: {
   onNotificationsChange: (enabled: boolean) => void;
   bookingProvider: BookingProvider;
   requestProvider: ContactRequestProvider;
+  draftKey: string | null;
 }): ChatWindowHandle {
   const panel = document.createElement('div');
   panel.className = 'kw-panel';
@@ -275,6 +276,7 @@ export function createChatWindow(handlers: {
 
   const contactForm = createContactFormView({
     provider: handlers.requestProvider,
+    draftKey: handlers.draftKey,
     onExit: () => {
       setView('home');
       home.focusPrimary();
@@ -283,6 +285,7 @@ export function createChatWindow(handlers: {
 
   const booking = createBookingView({
     provider: handlers.bookingProvider,
+    draftKey: handlers.draftKey,
     onExit: () => {
       setView('home');
       home.focusPrimary();
