@@ -428,3 +428,22 @@ with `ERROR packages field missing or empty`. If the build log still shows
   ignored. Preview mode passes no key, so it never reads or writes storage.
 - The SMS consent checkbox is a themed box (`.kw-consent-box`), not a native
   checkbox, and follows the appearance variables.
+
+### Request form layout, flat cards, and header tones (2026-11-10, later)
+
+- Request forms (`ui/contact-form.ts`): "Can we text you?" is a select
+  (`#kw-contact-sms`: "Select an option", "Yes, you can text me at this
+  number", "No, do not text me at this number"). It is required on Text and
+  optional on Call and Email. The service select placeholder is "Select an
+  option". All small print is one `.kw-booking-privacy` note after the message
+  (`LEGAL_TEXT` per kind, sharing `SMS_TERMS`); nothing sits between fields.
+  The `.kw-choice*` and `.kw-field-hint` styles were removed. The note has no
+  Privacy Policy or SMS Terms links because no URL setting exists yet.
+- Flat cards: no shadow on `.kw-appointment`, `.kw-channel`, the selected
+  `.kw-slot-filter-option`, or the done badge (it keeps its 8px tinted ring).
+  The floating panel keeps its shadow.
+- Header tones: `--kw-header-deep`, `--kw-header-light`, and `--kw-header-glow`
+  (on `.kw-root`) are shades and tints of `--kw-primary-color` only. The fixed
+  blue and violet mixes and `--kw-brand-blue` / `--kw-brand-violet` are gone.
+- The live widget applies colors in `applyBranding()` once per page load; the
+  periodic settings refresh only updates availability.

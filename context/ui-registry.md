@@ -393,3 +393,14 @@ messages or while the chat is open.
 
 **Pattern notes:** it previews one message and is replaced by the next one; it
 never stacks. It hides when the chat opens.
+
+## Header tones and flat cards (2026-11-10)
+
+- The header gradient, glow, and curve tint derive only from the action color
+  (`--kw-header-deep` = primary + black, `--kw-header-light` = primary + white,
+  `--kw-header-glow` = light tint at partial alpha). Never mix in a fixed hue.
+- Cards inside the panel (appointment card, channel tiles, segmented filters)
+  are flat: border plus surface, no `box-shadow`. Only the floating panel,
+  launcher, and preview bubble cast shadows.
+- Request forms put every disclaimer in one small note at the bottom of the
+  form; field hints between inputs are not used.

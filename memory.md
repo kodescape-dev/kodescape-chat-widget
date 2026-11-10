@@ -1368,3 +1368,80 @@ Retry the Cloudflare deployment and read the "Detected the following tools" line
 - Not built: SMS sending, calendar sync, reschedule and reminders, in-widget email form.
 - Still to do by hand: turn on embedded booking for the roofing org and set the external
   booking URL (`/book-a-call`) for the main Kodescape site in Settings > Website Chat > Channels.
+
+---
+
+# Memory — Bookings module + Website Chat polish (appended 2026-11-10, afternoon)
+
+Last updated: 2026-11-10
+
+## What was built
+
+- **API (kodescape-cms-api, 380a2c6):** Bookings management for Roofing orgs. `bookings.controller.ts`
+  (`GET /bookings`, `/bookings/overview`, `/bookings/:id`, `PATCH /bookings/:id`,
+  `POST /bookings/:id/notes`). Statuses new/contacted/scheduled/completed/cancelled, `slotHeld`,
+  notes + activity on the appointment, legacy `confirmed` → `scheduled` migration on startup.
+- **Admin (kodescape-admin):**
+  - Bookings page `app/bookings/` (4cabe98, 7473812). Sidebar item after Contacts, Roofing only.
+  - Contacts-style layout with a left status list and a phone view picker (0fc9a0d).
+  - Website Chat → Channels: one section card per channel, matching the other tabs (54c5203, fe776c0).
+    Sections start folded and use a bare chevron 16px after the switch (bdd2e47, 8714d85, e89ef9d).
+    No boxes inside a section; spacing instead of lines (a8ac820). The Bookings notice is removed (a3d7cbe).
+  - The preview follows the focused setting (fe776c0). Content resets the preview to Home when coming
+    from a channel screen (86110da).
+- **Widget (kodescape-chat-widget):**
+  - "Request received" wording (98e58c5).
+  - Text/Call/Email forms (13ef413, a11b281): "Can we text you?" is a select, required on Text, with
+    the options "Yes, you can text me at this number" / "No, do not text me at this number".
+    "Select an option" placeholders. All small print in one note at the bottom.
+  - Shadows removed from in-panel cards (b8fb17e).
+  - The header gradient is built only from the action color (6456eef).
+- **Docs (kodescape-docs):** Bookings + request form docs (e94ae68, bba8372). This save also updates
+  the Channels/Bookings layout wording in `admin-panel/inbox-and-website-chat.mdx`.
+- **Context files** (appended this save): admin `context/architecture.md` + `ui-registry.md`, widget
+  `context/architecture.md` + `ui-registry.md`, cms-api `context/architecture.md`.
+
+## Decisions made
+
+- Bookings is Roofing-only (API 403 + hidden sidebar item). A widget booking arrives as **New** with
+  the requested time held, and the team schedules it. Fixed 60 minutes. Only Cancelled frees the slot.
+- No Website column/filter on Bookings (one org = one website). "View in Contacts" links to
+  `/contacts?search=`.
+- Website Chat settings rule: section cards only, no cards inside cards, spacing not separators.
+- The legal note in request forms is fixed widget copy with no links or business name, because there
+  is no Privacy Policy / SMS Terms URL setting.
+- The floating widget panel keeps its shadow; only in-panel cards are flat.
+
+## Problems solved
+
+- `git commit` swept another session's staged files once. Fixed by soft reset and recommitting only
+  our files. Always check `git diff --cached --stat` before committing in admin.
+- Content tab went blank after editing channels, because the preview state was a channel screen.
+  Fixed by resetting to home on the tab switch.
+- A Bash heredoc append once left a stray `EOF && pwd -P …` line at the end of a file. Check file
+  tails after appending.
+
+## Current state
+
+- All four repos are committed locally; **nothing is pushed** (cms-api ahead 6, admin ahead ~16,
+  widget ahead ~15, docs ahead ~7, including another session's inbox-composer commits).
+- Live widget sites still run the old header and forms until the widget is deployed.
+- Roofing Test org test data:
+  - Embedded booking is on, with the "Leak Repair" service.
+  - Bookings BK-Y2BMLA (scheduled) and BK-V8XBNC (cancelled), plus two example.com test contacts.
+  - An unsaved duplicate "Leak Repair" may sit in an open settings form; do not save it.
+
+## Next session starts with
+
+Ask the user for the go-ahead to push, in this order: API first, then admin, widget, docs. After the
+widget deploys, check the header on a real Roofing site with an orange action color.
+
+## Open questions
+
+- Add editable Privacy Policy / SMS Terms links and the business name to the request-form note?
+  This touches API + admin + widget.
+- Should each channel's confirmation field preview its own "sent" screen? Needs `text-sent` /
+  `call-sent` / `email-sent` preview states in the widget.
+- Clean up the Roofing Test bookings/contacts and turn embedded booking off again?
+- Picking a channel screen from the Preview menu while on the Content tab still leaves the
+  Content section blank.
