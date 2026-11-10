@@ -165,8 +165,8 @@ export function createContactFormView(handlers: {
     select.required = required;
     select.append(
       new Option('Select an option', ''),
-      new Option('Yes', 'yes'),
-      new Option('No', 'no'),
+      new Option('Yes, you can text me at this number', 'yes'),
+      new Option('No, do not text me at this number', 'no'),
     );
     select.value =
       state.smsConsent === null ? '' : state.smsConsent ? 'yes' : 'no';

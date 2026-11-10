@@ -232,8 +232,8 @@ describe('contact request forms', () => {
     expect(consent.required).toBe(true);
     expect([...consent.options].map((option) => option.text)).toEqual([
       'Select an option',
-      'Yes',
-      'No',
+      'Yes, you can text me at this number',
+      'No, do not text me at this number',
     ]);
     expect(consent.value).toBe('');
     expect(
