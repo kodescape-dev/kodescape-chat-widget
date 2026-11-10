@@ -369,8 +369,9 @@ with `ERROR packages field missing or empty`. If the build log still shows
   opens in a new tab; a same-site URL or path stays in the current tab.
 - Embedded booking is a fourth view, `booking`, in `ui/window.ts`
   (`ui/booking.ts`). Steps: service, date and time, contact (with the property
-  address when required), review, then a confirmation shown only after the API
-  accepts the booking. Every appointment is 60 minutes; the widget shows
+  address when required), review, then a "Request received" screen shown only after the API
+  accepts the booking. It does not say the appointment is confirmed: the team
+  schedules it afterwards in the admin. Every appointment is 60 minutes; the widget shows
   "1 hour" from the API's `durationMinutes` and offers no length choice. Its
   state lives in the view, so Back, Home, and minimize keep what the visitor
   entered, and changing the service keeps the chosen time.

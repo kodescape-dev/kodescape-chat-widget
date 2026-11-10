@@ -431,7 +431,7 @@ describe('contact channels and embedded booking', () => {
       },
       address: { street: '12 Ridge Rd', postalCode: '12203' },
     });
-    expect(headingText(shadow)).toBe("You're booked");
+    expect(headingText(shadow)).toBe('Request received');
     const confirmation = query(shadow, '.kw-appointment').textContent ?? '';
     for (const expected of ['BK-TEST42', '1 hour', 'Thursday, November 12'])
       expect(confirmation).toContain(expected);
@@ -532,7 +532,7 @@ describe('contact channels and embedded booking', () => {
 
     next(shadow).click();
     await flush();
-    expect(headingText(shadow)).toBe("You're booked");
+    expect(headingText(shadow)).toBe('Request received');
     const ids = appointmentCalls().map(
       ([, init]) =>
         (
@@ -615,7 +615,7 @@ describe('contact channels and embedded booking', () => {
     next(shadow).click();
     next(shadow).click();
     await flush();
-    expect(headingText(shadow)).toBe("You're booked");
+    expect(headingText(shadow)).toBe('Request received');
     expect(localStorage.getItem(draftKey)).toBeNull();
     widget.destroy();
 
@@ -714,7 +714,7 @@ describe('contact channels and embedded booking', () => {
       ['booking-schedule', 'When would you like to schedule?'],
       ['booking-contact', 'How do we contact you?'],
       ['booking-review', 'Confirm Your Appointment'],
-      ['booking-confirmed', "You're booked"],
+      ['booking-confirmed', 'Request received'],
     ]) {
       configure(state);
       await flush();

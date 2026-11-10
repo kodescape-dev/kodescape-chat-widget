@@ -732,7 +732,7 @@ export function createBookingView(handlers: {
     const badge = node('span', 'kw-booking-done-badge');
     badge.innerHTML = CHECK_ICON;
     content.append(badge);
-    heading("You're booked", result.confirmationText);
+    heading('Request received', result.confirmationText);
     content.append(
       appointmentCard({
         serviceName: result.serviceName,
@@ -745,8 +745,8 @@ export function createBookingView(handlers: {
         'p',
         'kw-booking-note',
         state.contact.email.trim()
-          ? `We sent a confirmation to ${state.contact.email.trim()}. Keep your reference handy if you need to change anything.`
-          : 'Keep your reference handy if you need to change anything.',
+          ? `We sent a copy to ${state.contact.email.trim()}. We will contact you to confirm your appointment.`
+          : 'We will contact you to confirm your appointment.',
       ),
     );
   }
