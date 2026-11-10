@@ -2960,8 +2960,6 @@ textarea.kw-field-input {
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
-  box-shadow: 0 1px 2px
-    color-mix(in srgb, var(--kw-text-color, #0b1437) 3%, transparent);
   transition:
     border-color 160ms ease,
     background-color 160ms ease;
@@ -3318,8 +3316,6 @@ textarea.kw-field-input {
 .kw-slot-filter-option[aria-pressed='true'] {
   background: var(--kw-surface);
   color: var(--kw-ink-900);
-  box-shadow: 0 1px 2px
-    color-mix(in srgb, var(--kw-text-color, #0b1437) 12%, transparent);
 }
 
 .kw-slots {
@@ -3504,10 +3500,7 @@ textarea.kw-field-input {
   border-radius: 50%;
   background: var(--kw-primary-color, #173bd3);
   color: var(--kw-primary-foreground, #fff);
-  box-shadow:
-    0 0 0 8px var(--kw-brand-soft),
-    0 10px 20px -8px
-      color-mix(in srgb, var(--kw-primary-color, #173bd3) 60%, transparent);
+  box-shadow: 0 0 0 8px var(--kw-brand-soft);
   animation: kw-badge-pop 280ms ease-out;
 }
 
@@ -3533,10 +3526,6 @@ textarea.kw-field-input {
   border-radius: 16px;
   background: var(--kw-surface);
   text-align: left;
-  box-shadow:
-    0 1px 2px color-mix(in srgb, var(--kw-text-color, #0b1437) 6%, transparent),
-    0 14px 26px -18px
-      color-mix(in srgb, var(--kw-text-color, #0b1437) 34%, transparent);
 }
 
 .kw-appointment-head {
