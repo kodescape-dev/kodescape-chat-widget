@@ -411,3 +411,19 @@ with `ERROR packages field missing or empty`. If the build log still shows
   in the fixed footer so it never scrolls out of view.
 - The admin preview is the same renderer, so appearance edits reach every
   booking preview step, desktop and mobile.
+
+### Request forms and saved entries (2026-11-10)
+
+- Text, Call, and Email open an in-widget form (`ui/contact-form.ts`, a fifth
+  view named `contact`) instead of `sms:`, `tel:`, or `mailto:` links. It posts
+  to `POST /public/chat/requests?siteId=` with a `clientRequestId` that is reused
+  on retry. The confirmation text comes from the channel settings, so it never
+  claims a call or text happened. The three forms share one set of entered
+  values.
+- `core/draft.ts` keeps unsent entries in `localStorage` per site
+  (`kodescape_chat_draft:{siteId}:booking` and `:contact`) for 7 days, restored
+  on the next load and cleared once the booking or request is sent. A remembered
+  time is dropped when it is no longer available. A malformed or expired draft is
+  ignored. Preview mode passes no key, so it never reads or writes storage.
+- The SMS consent checkbox is a themed box (`.kw-consent-box`), not a native
+  checkbox, and follows the appearance variables.
