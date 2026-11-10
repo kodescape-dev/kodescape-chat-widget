@@ -29,6 +29,14 @@ const SENT_HEADINGS: Record<ContactRequestKind, string> = {
   call: 'Callback requested',
   email: 'Message sent',
 };
+// The small print under the form. Text and email forms share one wording.
+const SMS_TERMS =
+  'If you choose to receive text messages, message frequency varies. Msg & data rates may apply. Reply STOP to opt out or HELP for help. Consent to receive text messages is not required to submit this form or receive services.';
+const LEGAL_TEXT: Record<ContactRequestKind, string> = {
+  text: `By submitting this form, you agree that our team may contact you about your inquiry. ${SMS_TERMS}`,
+  call: `By submitting this form, you agree that our team may call you about your inquiry. ${SMS_TERMS}`,
+  email: `By submitting this form, you agree that our team may contact you about your inquiry. ${SMS_TERMS}`,
+};
 const SUBMIT_FAILED =
   'We could not send your request. Check your connection and try again.';
 
@@ -145,37 +153,29 @@ export function createContactFormView(handlers: {
     });
   }
 
-  function consentGroup(): HTMLElement {
-    const group = node('fieldset', 'kw-field kw-choice-field');
-    group.append(
-      node('legend', 'kw-choice-legend', 'Can we text you updates?'),
+  function consentField(): HTMLElement {
+    // Text requests need an answer; for calls and email it is a bonus.
+    const required = kind === 'text';
+    const wrap = node('div', 'kw-field');
+    const label = node('label', '', 'Can we text you?');
+    label.htmlFor = 'kw-contact-sms';
+    if (!required) label.append(node('span', 'kw-field-opt', ' (optional)'));
+    const select = node('select', 'kw-field-input kw-select');
+    select.id = 'kw-contact-sms';
+    select.required = required;
+    select.append(
+      new Option('Select an option', ''),
+      new Option('Yes', 'yes'),
+      new Option('No', 'no'),
     );
-    const options = node('div', 'kw-choice-group');
-    for (const [label, value] of [
-      ['Yes', true],
-      ['No', false],
-    ] as const) {
-      const option = node('label', 'kw-choice');
-      const input = node('input', 'kw-choice-input');
-      input.type = 'radio';
-      input.name = 'kw-contact-sms';
-      input.checked = state.smsConsent === value;
-      input.addEventListener('change', () => {
-        state.smsConsent = value;
-        persist();
-      });
-      option.append(input, node('span', 'kw-choice-label', label));
-      options.append(option);
-    }
-    group.append(
-      options,
-      node(
-        'p',
-        'kw-field-hint',
-        'Optional. Message and data rates may apply. Reply STOP to opt out.',
-      ),
-    );
-    return group;
+    select.value =
+      state.smsConsent === null ? '' : state.smsConsent ? 'yes' : 'no';
+    select.addEventListener('change', () => {
+      state.smsConsent = select.value === '' ? null : select.value === 'yes';
+      persist();
+    });
+    wrap.append(label, select);
+    return wrap;
   }
 
   function serviceField(): HTMLElement | null {
@@ -186,7 +186,7 @@ export function createContactFormView(handlers: {
     label.htmlFor = 'kw-contact-service';
     const select = node('select', 'kw-field-input kw-select');
     select.id = 'kw-contact-service';
-    select.append(new Option('Select a service', ''));
+    select.append(new Option('Select an option', ''));
     for (const service of services)
       select.append(new Option(service.name, service.id));
     select.value = state.serviceId;
@@ -262,16 +262,12 @@ export function createContactFormView(handlers: {
     row.append(first.wrap, last.wrap);
     form.append(row, phone.wrap);
     if (kind === 'email') form.append(email.wrap);
-    form.append(consentGroup());
+    form.append(consentField());
     const service = serviceField();
     if (service) form.append(service);
     form.append(
       message.wrap,
-      node(
-        'p',
-        'kw-booking-privacy',
-        "We'll only use your details to respond to your request.",
-      ),
+      node('p', 'kw-booking-privacy', LEGAL_TEXT[kind]),
     );
     form.addEventListener('submit', (event) => {
       event.preventDefault();

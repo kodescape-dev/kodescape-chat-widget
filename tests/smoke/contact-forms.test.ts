@@ -151,6 +151,12 @@ describe('contact request forms', () => {
     input.dispatchEvent(new Event('input', { bubbles: true }));
   }
 
+  function choose(shadow: ShadowRoot, id: string, value: string) {
+    const select = query<HTMLSelectElement>(shadow, `#${id}`);
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
   function fillPerson(shadow: ShadowRoot) {
     type(shadow, 'kw-contact-first', 'Ada');
     type(shadow, 'kw-contact-last', 'Lovelace');
@@ -214,9 +220,7 @@ describe('contact request forms', () => {
     const { widget, shadow } = await open();
     tile(shadow, 'Text').click();
     const fields = [
-      ...shadow.querySelectorAll<HTMLInputElement>(
-        '.kw-contact input:not([type="radio"])',
-      ),
+      ...shadow.querySelectorAll<HTMLInputElement>('.kw-contact input'),
     ];
     expect(fields.map((field) => field.id)).toEqual([
       'kw-contact-first',
@@ -224,19 +228,41 @@ describe('contact request forms', () => {
       'kw-contact-phone',
     ]);
     expect(fields.every((field) => field.placeholder)).toBe(true);
-    const radios = [
-      ...shadow.querySelectorAll<HTMLInputElement>('input[type="radio"]'),
-    ];
-    expect(radios).toHaveLength(2);
-    expect(radios.map((radio) => radio.checked)).toEqual([false, false]);
+    const consent = query<HTMLSelectElement>(shadow, '#kw-contact-sms');
+    expect(consent.required).toBe(true);
+    expect([...consent.options].map((option) => option.text)).toEqual([
+      'Select an option',
+      'Yes',
+      'No',
+    ]);
+    expect(consent.value).toBe('');
     expect(
       [...query<HTMLSelectElement>(shadow, '#kw-contact-service').options].map(
         (option) => option.text,
       ),
-    ).toEqual(['Select a service', 'Leak Repair', 'Gutter Services']);
+    ).toEqual(['Select an option', 'Leak Repair', 'Gutter Services']);
     expect(
       query(shadow, '#kw-contact-message').getAttribute('placeholder'),
     ).toBeTruthy();
+    widget.destroy();
+  });
+
+  it('puts all the small print in one note under the form, not between fields', async () => {
+    const { widget, shadow } = await open();
+    for (const [name] of [['Text'], ['Call'], ['Email']] as const) {
+      tile(shadow, name).click();
+      expect(
+        shadow.querySelectorAll('.kw-contact .kw-field-hint'),
+      ).toHaveLength(0);
+      const form = query(shadow, '.kw-contact form');
+      const note = form.lastElementChild as HTMLElement;
+      expect(note.className).toBe('kw-booking-privacy');
+      expect(note.textContent).toContain('By submitting this form');
+      expect(note.textContent).toContain(
+        'Reply STOP to opt out or HELP for help.',
+      );
+      back(shadow).click();
+    }
     widget.destroy();
   });
 
@@ -267,7 +293,7 @@ describe('contact request forms', () => {
     query<HTMLSelectElement>(shadow, '#kw-contact-service').dispatchEvent(
       new Event('change', { bubbles: true }),
     );
-    shadow.querySelectorAll<HTMLInputElement>('input[type="radio"]')[0].click();
+    choose(shadow, 'kw-contact-sms', 'yes');
     submit(shadow).click();
     submit(shadow).click();
     await flush();
@@ -339,7 +365,7 @@ describe('contact request forms', () => {
     const { widget, shadow } = await open();
     tile(shadow, 'Call').click();
     fillPerson(shadow);
-    shadow.querySelectorAll<HTMLInputElement>('input[type="radio"]')[1].click();
+    choose(shadow, 'kw-contact-sms', 'no');
     submit(shadow).click();
     await flush();
     const body = JSON.parse(
@@ -413,9 +439,7 @@ describe('contact request forms', () => {
     tile(first.shadow, 'Text').click();
     fillPerson(first.shadow);
     type(first.shadow, 'kw-contact-message', 'Please text me a quote.');
-    first.shadow
-      .querySelectorAll<HTMLInputElement>('input[type="radio"]')[0]
-      .click();
+    choose(first.shadow, 'kw-contact-sms', 'yes');
     const service = query<HTMLSelectElement>(
       first.shadow,
       '#kw-contact-service',
@@ -439,11 +463,9 @@ describe('contact request forms', () => {
     expect(query<HTMLSelectElement>(shadow, '#kw-contact-service').value).toBe(
       'gutters',
     );
-    expect(
-      [...shadow.querySelectorAll<HTMLInputElement>('input[type="radio"]')].map(
-        (radio) => radio.checked,
-      ),
-    ).toEqual([true, false]);
+    expect(query<HTMLSelectElement>(shadow, '#kw-contact-sms').value).toBe(
+      'yes',
+    );
 
     submit(shadow).click();
     await flush();
