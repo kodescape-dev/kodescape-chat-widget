@@ -290,14 +290,14 @@ button {
   background:
     radial-gradient(
       circle at 12% -20%,
-      color-mix(in srgb, var(--kw-primary-color, #2563eb) 68%, #38bdf8) 0,
+      var(--kw-header-glow) 0,
       transparent 46%
     ),
     linear-gradient(
       132deg,
-      color-mix(in srgb, var(--kw-primary-color, #2563eb) 68%, #312e81),
+      var(--kw-header-deep),
       var(--kw-primary-color, #2563eb) 48%,
-      color-mix(in srgb, var(--kw-primary-color, #2563eb) 30%, #7c3aed)
+      var(--kw-header-light)
     );
   flex-shrink: 0;
 }
@@ -339,7 +339,7 @@ button {
   left: -8%;
   height: 52px;
   border-radius: 50% 48% 0 0 / 72% 66% 0 0;
-  background: color-mix(in srgb, var(--kw-primary-color, #2563eb) 64%, #a78bfa);
+  background: var(--kw-header-light);
   opacity: 0.72;
   transform: rotate(2deg);
 }
@@ -2201,15 +2201,21 @@ button {
 /* ---------- Kodescape reference redesign ---------- */
 
 .kw-root {
-  --kw-brand-blue: color-mix(
+  /* Header tones derive from the action color only, never a fixed hue. */
+  --kw-header-deep: color-mix(
     in srgb,
-    var(--kw-primary-color, #173bd3) 78%,
-    #004cdd
+    var(--kw-primary-color, #173bd3) 74%,
+    #000
   );
-  --kw-brand-violet: color-mix(
+  --kw-header-light: color-mix(
     in srgb,
-    var(--kw-primary-color, #173bd3) 48%,
-    #7139ee
+    var(--kw-primary-color, #173bd3) 70%,
+    #fff
+  );
+  --kw-header-glow: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--kw-primary-color, #173bd3) 55%, #fff) 72%,
+    transparent
   );
   --kw-brand-soft: color-mix(
     in srgb,
@@ -2316,16 +2322,12 @@ button {
 .kw-header {
   min-height: 78px;
   background:
-    radial-gradient(
-      circle at 12% -18%,
-      rgba(51, 191, 255, 0.78),
-      transparent 43%
-    ),
+    radial-gradient(circle at 12% -18%, var(--kw-header-glow), transparent 43%),
     linear-gradient(
       128deg,
-      #063dbe 0%,
-      var(--kw-brand-blue) 51%,
-      var(--kw-brand-violet) 100%
+      var(--kw-header-deep) 0%,
+      var(--kw-primary-color, #173bd3) 51%,
+      var(--kw-header-light) 100%
     );
 }
 
