@@ -1,4 +1,4 @@
-import { ChatApi } from './core/api';
+import { ApiError, ChatApi } from './core/api';
 import { SessionManager } from './core/session';
 import { ChatSocket } from './core/socket';
 import { ChatStore } from './core/store';
@@ -1113,9 +1113,18 @@ export function mount(options: MountOptions): MountedWidget {
         if (typeof refreshAfter === 'number' && Number.isFinite(refreshAfter))
           delay = Math.max(1000, Math.min(60000, refreshAfter));
       })
-      .catch(() => {
-        if (!destroyed && !currentSettings)
-          applyBranding(DEFAULT_WIDGET_SETTINGS);
+      .catch((error: unknown) => {
+        if (destroyed) return;
+        // Chat is switched off, or this site is no longer allowed: remove the
+        // widget rather than show a launcher with default styling.
+        if (
+          error instanceof ApiError &&
+          (error.status === 403 || error.status === 404)
+        ) {
+          teardown();
+          return;
+        }
+        if (!currentSettings) applyBranding(DEFAULT_WIDGET_SETTINGS);
       })
       .finally(() => {
         settingsRefreshInFlight = false;
@@ -1218,29 +1227,32 @@ export function mount(options: MountOptions): MountedWidget {
     );
   }
 
+  function teardown(): void {
+    if (destroyed) return;
+    destroyed = true;
+    clearTimeout(settingsTimer);
+    unsubscribe();
+    document.removeEventListener('visibilitychange', handleVisibilityChange);
+    window.removeEventListener('resize', handleViewportChange);
+    window.removeEventListener('focus', refreshAvailability);
+    window.removeEventListener('message', handlePreviewMessage);
+    chatWindow.listEl.removeEventListener('scroll', handleMessageListScroll);
+    if (historyPreloadTimer) clearTimeout(historyPreloadTimer);
+    if (contextPollTimer) clearInterval(contextPollTimer);
+    stopVisitorTracking();
+    clearVisitorDraft();
+    remoteTypingTimers.forEach(clearTimeout);
+    remoteTypingTimers.clear();
+    socket.disconnect();
+    chatWindow.destroy();
+    host.remove();
+  }
+
   return {
     open() {
       if (!destroyed && !isOpen) void setOpen(true);
     },
-    destroy() {
-      destroyed = true;
-      clearTimeout(settingsTimer);
-      unsubscribe();
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-      window.removeEventListener('resize', handleViewportChange);
-      window.removeEventListener('focus', refreshAvailability);
-      window.removeEventListener('message', handlePreviewMessage);
-      chatWindow.listEl.removeEventListener('scroll', handleMessageListScroll);
-      if (historyPreloadTimer) clearTimeout(historyPreloadTimer);
-      if (contextPollTimer) clearInterval(contextPollTimer);
-      stopVisitorTracking();
-      clearVisitorDraft();
-      remoteTypingTimers.forEach(clearTimeout);
-      remoteTypingTimers.clear();
-      socket.disconnect();
-      chatWindow.destroy();
-      host.remove();
-    },
+    destroy: teardown,
   };
 }
 

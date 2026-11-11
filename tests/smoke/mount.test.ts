@@ -246,6 +246,45 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it.each([403, 404])(
+    'removes the widget when widget-settings answers %i (chat switched off)',
+    async (status) => {
+      vi.stubGlobal(
+        'fetch',
+        vi.fn((input: string) => {
+          if (input.includes('/widget-settings')) {
+            return {
+              ok: false,
+              status,
+              json: () =>
+                Promise.resolve({
+                  success: false,
+                  statusCode: status,
+                  message: 'Chat widget not available',
+                  data: null,
+                }),
+            };
+          }
+          return jsonResponse({ items: [], nextCursor: null });
+        }),
+      );
+
+      const { mount } = await import('../../src/mount');
+      const widget = mount({
+        siteId: 'site-1',
+        apiBaseUrl: 'http://localhost:5001',
+        target: container,
+      });
+
+      await flush();
+
+      expect(container.firstElementChild).toBeNull();
+      widget.open();
+      expect(container.firstElementChild).toBeNull();
+      widget.destroy();
+    },
+  );
+
   it('connects visitor presence as soon as the site loads', async () => {
     const { mount } = await import('../../src/mount');
     const widget = mount({
