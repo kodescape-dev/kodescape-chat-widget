@@ -13,3 +13,15 @@ coverage
 
 .claude/skills/impeccable
 .agents/skills/impeccable
+# Agent files live in kodescape-vertex
+/CLAUDE.md
+/AGENTS.md
+/PRODUCT.md
+/DESIGN.md
+/memory.md
+/context/
+/.agents/
+/.claude/
+/.codex/
+/.mcp.json
+/opencode.json
