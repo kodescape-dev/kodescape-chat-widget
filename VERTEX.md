@@ -1,6 +1,6 @@
 # Vertex
 
-This repo keeps only its code. Its agent guide, context, engineering docs, product and design briefs, Claude and Codex config, skills and decision records live in [kodescape-vertex](https://github.com/kodescape-dev/kodescape-vertex), in the `chat-widget/` folder.
+This repo keeps only its code. Its agent guide, context, engineering docs, product and design briefs, Claude config, skills and decision records live in [kodescape-vertex](https://github.com/kodescape-dev/kodescape-vertex), in the `chat-widget/` folder.
 
 - Guide: [chat-widget/GUIDE.md](https://github.com/kodescape-dev/kodescape-vertex/blob/main/chat-widget/GUIDE.md)
 - Decisions: [decisions/chat-widget index.md](https://github.com/kodescape-dev/kodescape-vertex/blob/main/decisions/chat-widget%20index.md)
@@ -15,6 +15,6 @@ git clone https://github.com/kodescape-dev/kodescape-vertex.git ../kodescape-ver
 ../kodescape-vertex/scripts/setup.sh
 ```
 
-The script installs the `kodescape` Claude Code plugin and links this repo's `.claude/`, `.codex/` and `.mcp.json` config from the vault. Each Claude Code session in this repo then loads `chat-widget/GUIDE.md` and keeps those links in place, worktrees included. See [Set up Vertex](https://github.com/kodescape-dev/kodescape-vertex/blob/main/systems/Set%20up%20Vertex.md).
+The script installs the `kodescape` Claude Code plugin and links this repo's `.claude/launch.json` from the vault. Each Claude Code session in this repo then loads `chat-widget/GUIDE.md` and keeps that link in place, worktrees included. See [Set up Vertex](https://github.com/kodescape-dev/kodescape-vertex/blob/main/systems/Set%20up%20Vertex.md).
 
 Do not commit `CLAUDE.md`, `AGENTS.md`, `context/`, `PRODUCT.md`, `DESIGN.md`, `memory.md`, `.agents/`, `.claude/`, `.codex/` or `.mcp.json` to this repo. Change them in kodescape-vertex.
