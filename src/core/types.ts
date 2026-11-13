@@ -98,9 +98,52 @@ export interface IdentifyResult {
 }
 
 export type MessageDirection = 'inbound' | 'outbound';
-export type MessageSenderType = 'visitor' | 'human';
+export type MessageSenderType = 'visitor' | 'human' | 'ai';
 
 export type MessageStatus = 'sent' | 'delivered' | 'read';
+
+export interface MessageAi {
+  kind: 'reply' | 'followup' | 'handoff' | 'greeting' | 'notice';
+  links: Array<{ url: string; title: string }>;
+  quickReplies: string[];
+}
+
+export interface AiGreeting {
+  id: string;
+  trigger: 'page_visit' | 'time_on_page' | 'returning_visitor';
+  urlContains: string;
+  delaySeconds: number;
+  message: string;
+  quickReplies: string[];
+}
+
+export interface AiInfo {
+  active: boolean;
+  name: string;
+  avatarUrl: string | null;
+  ratingEnabled: boolean;
+  pendingRatingConversationId: string | null;
+  greetings: AiGreeting[];
+}
+
+export interface AiTypingEvent {
+  conversationId: string;
+  active: boolean;
+  name: string;
+  avatarUrl?: string | null;
+}
+
+export interface AiStreamEvent {
+  conversationId: string;
+  streamId: string;
+  text: string;
+  done: boolean;
+}
+
+export interface ConversationClosedEvent {
+  conversationId: string;
+  askRating: boolean;
+}
 
 export interface ServerMessage {
   id: string;
@@ -113,6 +156,7 @@ export interface ServerMessage {
   attachments?: MessageAttachment[];
   replyTo?: MessageReply | null;
   reactions?: MessageReaction[];
+  ai?: MessageAi | null;
   createdAt: string;
   status: MessageStatus;
 }

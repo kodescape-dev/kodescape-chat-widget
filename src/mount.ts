@@ -21,7 +21,10 @@ import { findWidgetScript } from './script-element';
 import { createLauncher } from './ui/launcher';
 import { createTeaser } from './ui/teaser';
 import { createChatWindow } from './ui/window';
-import { renderMessages } from './ui/message-list';
+import { renderMessages, updateStreamingText } from './ui/message-list';
+import { AI_TYPER_ID } from './ui/typing-indicator';
+import { createRatingCard, type RatingCardHandle } from './ui/rating';
+import type { AiGreeting, AiInfo } from './core/types';
 import type { LeadCaptureConfig, LeadCaptureData } from './ui/lead-capture';
 import type {
   ContactPromptConfig,
@@ -79,6 +82,10 @@ const HISTORY_TOP_THRESHOLD_PX = 80;
 const HISTORY_PRELOAD_DELAY_MS = 1000;
 const DRAFT_UPDATE_DELAY_MS = 250;
 const REMOTE_TYPING_TIMEOUT_MS = 6000;
+// The AI agent sends one "typing" signal for a whole answer, so its indicator must outlast a slow reply.
+const AI_TYPING_TIMEOUT_MS = 60000;
+
+const GREETED_KEY = 'kodescape_chat_greeted';
 const CONTEXT_POLL_INTERVAL_MS = 2000;
 const VISITOR_HEARTBEAT_INTERVAL_MS = 15000;
 const DEFAULT_LEAD_SETTINGS: Pick<
@@ -264,6 +271,21 @@ export function mount(options: MountOptions): MountedWidget {
     { id: string; name: string; avatarUrl?: string | null }
   >();
   const remoteTypingTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  let aiInfo: AiInfo | null = null;
+  let aiStreamText = '';
+  // The answer is typed out at a steady pace, even when the model sends it in one burst.
+  const aiReveal = {
+    target: '',
+    shown: 0,
+    messageId: null as string | null,
+    timer: null as ReturnType<typeof setInterval> | null,
+  };
+  const reducedMotion =
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let ratingCard: RatingCardHandle | null = null;
+  let pendingGreeting: AiGreeting | null = null;
+  let greetingTimer: ReturnType<typeof setTimeout> | null = null;
   let readMarkInFlight = false;
   let historyLoaded = false;
   let historyNextCursor: string | null = null;
@@ -321,7 +343,7 @@ export function mount(options: MountOptions): MountedWidget {
 
   (options.target ?? document.body).appendChild(host);
 
-  const unsubscribe = store.subscribe(() => {
+  const render = () => {
     renderMessages(
       chatWindow.listEl,
       store.getMessages(),
@@ -334,11 +356,132 @@ export function mount(options: MountOptions): MountedWidget {
           DEFAULT_WIDGET_SETTINGS.supportDisplayName,
         avatarUrl: currentSettings?.supportAvatarUrl ?? null,
       },
+      {
+        name: aiInfo?.name ?? 'Assistant',
+        avatarUrl: aiInfo?.avatarUrl ?? null,
+        streamText: aiStreamText,
+        hiddenMessageId: aiReveal.messageId,
+        onQuickReply: (text) => handleSend({ content: text, attachments: [] }),
+        onLinkClick: handleAiLinkClick,
+        footer: ratingCard?.el ?? null,
+      },
     );
     chatWindow.setConnectionStatus(store.isConnected());
     launcher.setUnread(isOpen ? 0 : unreadMessageCount);
     maybeMarkMessagesRead(unreadMessageCount > 0);
-  });
+  };
+  const unsubscribe = store.subscribe(render);
+
+  function scrollListToBottom(): void {
+    chatWindow.listEl.scrollTop = chatWindow.listEl.scrollHeight;
+  }
+
+  function stopAiReveal(): void {
+    if (aiReveal.timer) clearInterval(aiReveal.timer);
+    aiReveal.timer = null;
+    aiReveal.target = '';
+    aiReveal.shown = 0;
+    aiReveal.messageId = null;
+    aiStreamText = '';
+  }
+
+  function stepAiReveal(): void {
+    const left = aiReveal.target.length - aiReveal.shown;
+    if (left > 0) aiReveal.shown += Math.max(2, Math.ceil(left / 40));
+    aiStreamText = aiReveal.target.slice(0, aiReveal.shown);
+    if (left <= 0) {
+      if (aiReveal.timer) clearInterval(aiReveal.timer);
+      aiReveal.timer = null;
+      // The whole answer is out, so the real message takes over with its links and buttons.
+      if (aiReveal.messageId) {
+        stopAiReveal();
+        render();
+        scrollListToBottom();
+      }
+      return;
+    }
+    if (!updateStreamingText(chatWindow.listEl, aiStreamText)) render();
+  }
+
+  // `messageId` is set once the finished message has arrived.
+  function revealAiText(target: string, messageId: string | null): void {
+    if (!target.startsWith(aiStreamText)) aiReveal.shown = 0;
+    aiReveal.target = target;
+    if (messageId) aiReveal.messageId = messageId;
+    stepAiReveal();
+    if (aiReveal.shown < aiReveal.target.length || aiReveal.messageId) {
+      aiReveal.timer ??= setInterval(stepAiReveal, 30);
+    }
+  }
+
+  function handleAiLinkClick(url: string): void {
+    void session
+      .ensureAccessToken()
+      .then((token) => api.trackLinkClick(token, url))
+      .catch(() => undefined);
+  }
+
+  function showRatingCard(): void {
+    if (ratingCard) return;
+    ratingCard = createRatingCard({
+      onSubmit: async (rating, comment) => {
+        const token = await session.ensureAccessToken();
+        await api.rateConversation(token, rating, comment);
+      },
+    });
+    render();
+    scrollListToBottom();
+  }
+
+  async function loadAiInfo(): Promise<void> {
+    if (options.preview || destroyed) return;
+    try {
+      const token = await session.ensureAccessToken();
+      aiInfo = await api.getAiInfo(options.siteId, token);
+    } catch {
+      return;
+    }
+    render();
+    if (aiInfo.pendingRatingConversationId) showRatingCard();
+    scheduleGreeting();
+  }
+
+  // A greeting is offered once per browser session, and never over a conversation that already exists.
+  function scheduleGreeting(): void {
+    if (!aiInfo?.active || greetingTimer || pendingGreeting) return;
+    if (hasResumableConversation || store.getMessages().length > 0) return;
+    try {
+      if (sessionStorage.getItem(GREETED_KEY)) return;
+    } catch {
+      return;
+    }
+    const greeting = aiInfo.greetings.find(
+      (item) =>
+        (!item.urlContains || location.href.includes(item.urlContains)) &&
+        (item.trigger !== 'returning_visitor' || session.hasResumedSession()),
+    );
+    if (!greeting) return;
+    greetingTimer = setTimeout(() => {
+      greetingTimer = null;
+      if (destroyed || hasResumableConversation) return;
+      if (store.getMessages().length > 0) return;
+      pendingGreeting = greeting;
+      try {
+        sessionStorage.setItem(GREETED_KEY, '1');
+      } catch {}
+      store.addLocalAi(
+        `kiro-greeting-${greeting.id}`,
+        aiInfo?.name ?? null,
+        greeting.message,
+        { kind: 'greeting', links: [], quickReplies: greeting.quickReplies },
+      );
+      if (!isOpen) teaser.show(aiInfo?.name ?? null, greeting.message);
+      void session
+        .ensureAccessToken()
+        .then((token) => api.greetingShown(token, greeting.id))
+        .catch(() => undefined);
+    }, greeting.delaySeconds * 1000);
+  }
 
   function hasUnseenAdminMessage(): boolean {
     const messages = store.getMessages();
@@ -720,7 +863,10 @@ export function mount(options: MountOptions): MountedWidget {
     if (previousTimer) clearTimeout(previousTimer);
     remoteTypingTimers.set(
       id,
-      setTimeout(() => removeRemoteTyper(id), REMOTE_TYPING_TIMEOUT_MS),
+      setTimeout(
+        () => removeRemoteTyper(id),
+        id === AI_TYPER_ID ? AI_TYPING_TIMEOUT_MS : REMOTE_TYPING_TIMEOUT_MS,
+      ),
     );
     renderRemoteTypers();
   }
@@ -777,6 +923,7 @@ export function mount(options: MountOptions): MountedWidget {
         historyLoaded = true;
         chatWindow.setResumeAvailable(canAutoResume());
         if (hasResumableConversation) maybeShowContactPrompt();
+        void loadAiInfo();
       } catch {}
       chatWindow.setLoading(false);
 
@@ -853,6 +1000,14 @@ export function mount(options: MountOptions): MountedWidget {
           ) {
             unreadMessageCount += 1;
           }
+          if (event.message.senderType === 'ai') {
+            removeRemoteTyper(AI_TYPER_ID);
+            if (isOpen && !reducedMotion && event.message.content) {
+              revealAiText(event.message.content, event.message.id);
+            } else {
+              stopAiReveal();
+            }
+          }
           store.receiveRealtime(event.message);
           if (event.message.direction === 'outbound' && !isOpen) {
             teaser.show(event.message.senderName, event.message.content);
@@ -881,6 +1036,36 @@ export function mount(options: MountOptions): MountedWidget {
           store.applyReactions(event.messageId, event.reactions),
         onTypingStart: handleRemoteTypingStart,
         onTypingStop: handleRemoteTypingStop,
+        onAiTyping: (event) => {
+          if (event.active && !aiStreamText) {
+            handleRemoteTypingStart({
+              conversationId: event.conversationId,
+              actorId: AI_TYPER_ID,
+              name: event.name,
+              avatarUrl: event.avatarUrl ?? aiInfo?.avatarUrl ?? null,
+            });
+          } else if (!event.active) {
+            removeRemoteTyper(AI_TYPER_ID);
+            // A finished answer keeps typing out after the agent stops writing.
+            if (!aiReveal.messageId) stopAiReveal();
+            render();
+          }
+        },
+        onAiStream: (event) => {
+          if (event.done || !event.text || aiReveal.messageId) return;
+          removeRemoteTyper(AI_TYPER_ID);
+          if (reducedMotion) {
+            aiStreamText = event.text;
+            render();
+          } else {
+            revealAiText(event.text, null);
+          }
+          scrollListToBottom();
+        },
+        onConversationClosed: (event) => {
+          currentConversationId = null;
+          if (event.askRating) showRatingCard();
+        },
       })
       .then(scheduleHistoryPreload)
       .catch(() => {
@@ -926,6 +1111,8 @@ export function mount(options: MountOptions): MountedWidget {
 
   function handleSend(submission: ComposerSubmission): void {
     clearVisitorDraft();
+    // A new message starts a new chat, so the rating for the last one goes away.
+    ratingCard = null;
     const clientMessageId = crypto.randomUUID();
     const replyTarget = submission.replyToMessageId
       ? store
@@ -1024,6 +1211,13 @@ export function mount(options: MountOptions): MountedWidget {
     replyToMessageId?: string,
   ): Promise<void> {
     try {
+      if (pendingGreeting) {
+        const greeting = pendingGreeting;
+        pendingGreeting = null;
+        // Stores the greeting as the first message, so the team and the agent see what the visitor replied to.
+        const token = await session.ensureAccessToken();
+        await api.startFromGreeting(token, greeting.id).catch(() => undefined);
+      }
       const serverMessage = await socket.sendMessage(
         clientMessageId,
         content,
@@ -1071,6 +1265,7 @@ export function mount(options: MountOptions): MountedWidget {
     );
     chatWindow.configureLeadCapture(leadCaptureConfig());
     chatWindow.setResumeAvailable(canAutoResume());
+    applyWebsiteFont(host);
     host.style.setProperty('--kw-primary-color', normalized.primaryColor);
     host.style.setProperty('--kw-background-color', normalized.backgroundColor);
     host.style.setProperty('--kw-text-color', normalized.textColor);
@@ -1231,6 +1426,7 @@ export function mount(options: MountOptions): MountedWidget {
     if (destroyed) return;
     destroyed = true;
     clearTimeout(settingsTimer);
+    if (aiReveal.timer) clearInterval(aiReveal.timer);
     unsubscribe();
     document.removeEventListener('visibilitychange', handleVisibilityChange);
     window.removeEventListener('resize', handleViewportChange);
@@ -1317,6 +1513,23 @@ function previewBookingProvider(
       });
     },
   };
+}
+
+// The widget wears the website's own font, so a font picked in the CMS appearance shows here too.
+// A site that never set a font keeps the widget's default instead of the browser's serif.
+function applyWebsiteFont(host: HTMLElement): void {
+  const probe = document.createElement('span');
+  probe.style.all = 'initial';
+  probe.style.fontFamily = 'initial';
+  document.body.appendChild(probe);
+  const browserDefault = getComputedStyle(probe).fontFamily;
+  probe.remove();
+  const website = getComputedStyle(document.body).fontFamily.trim();
+  if (website && website !== browserDefault) {
+    host.style.setProperty('--kw-font-family', website);
+  } else {
+    host.style.removeProperty('--kw-font-family');
+  }
 }
 
 function playIncomingSound(): void {

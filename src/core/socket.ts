@@ -1,6 +1,9 @@
 import { io, type Socket } from 'socket.io-client';
 import type {
+  AiStreamEvent,
+  AiTypingEvent,
   ContextPayload,
+  ConversationClosedEvent,
   MessageFailedEvent,
   MessageNewEvent,
   MessageReactionsEvent,
@@ -23,6 +26,9 @@ export interface ChatSocketHandlers {
   onMessageReactions: (event: MessageReactionsEvent) => void;
   onTypingStart: (event: TypingEvent) => void;
   onTypingStop: (event: TypingEvent) => void;
+  onAiTyping: (event: AiTypingEvent) => void;
+  onAiStream: (event: AiStreamEvent) => void;
+  onConversationClosed: (event: ConversationClosedEvent) => void;
 }
 
 export class ChatSocket {
@@ -67,6 +73,15 @@ export class ChatSocket {
     });
     socket.on('typing:stop', (event: TypingEvent) => {
       handlers.onTypingStop(event);
+    });
+    socket.on('ai:typing', (event: AiTypingEvent) => {
+      handlers.onAiTyping(event);
+    });
+    socket.on('ai:stream', (event: AiStreamEvent) => {
+      handlers.onAiStream(event);
+    });
+    socket.on('conversation:closed', (event: ConversationClosedEvent) => {
+      handlers.onConversationClosed(event);
     });
 
     socket.io.on('reconnect_attempt', () => {

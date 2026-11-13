@@ -1,8 +1,22 @@
+import kiroFaceUrl from '../assets/kiro-face.webp';
 import type { LocalMessage, LocalMessageStatus } from '../core/store';
 import { createBrandMark } from './branding';
 import { createEmojiPicker } from './emoji-picker';
+import { createLink, renderRichText } from './rich-text';
+
+export interface AiRenderOptions {
+  name: string;
+  avatarUrl: string | null;
+  streamText: string;
+  // The finished AI message is held back while its text is still being typed out.
+  hiddenMessageId?: string | null;
+  onQuickReply: (text: string) => void;
+  onLinkClick: (url: string) => void;
+  footer: HTMLElement | null;
+}
 
 const QUICK_REACTIONS = ['👍', '❤️', '😂', '😮'] as const;
+const FORMATTED_TEXT = /\[[^\]\n]+\]\(https?:\/\/[^\s)]+\)|\*\*[^*\n]+\*\*/;
 
 const SCROLL_BOTTOM_THRESHOLD_PX = 16;
 
@@ -82,33 +96,77 @@ export function clearLoadingSkeleton(container: HTMLElement): void {
   container.removeAttribute('aria-label');
 }
 
+// Swaps only the text of the answer being typed out, so the rest of the list is not rebuilt on every step.
+export function updateStreamingText(
+  container: HTMLElement,
+  text: string,
+): boolean {
+  const content = container.querySelector('.kw-bubble-row--streaming .kw-rich');
+  if (!content) return false;
+  const wasScrolledToBottom =
+    container.scrollHeight - container.scrollTop - container.clientHeight <
+    SCROLL_BOTTOM_THRESHOLD_PX;
+  content.textContent = '';
+  content.appendChild(renderRichText(text));
+  if (wasScrolledToBottom) container.scrollTop = container.scrollHeight;
+  return true;
+}
+
 export function renderMessages(
   container: HTMLElement,
-  messages: readonly LocalMessage[],
+  allMessages: readonly LocalMessage[],
   onRetry: (clientMessageId: string) => void,
   onReact: (messageId: string, emoji: string) => void,
   onReply: (message: LocalMessage) => void,
   support?: { name: string; avatarUrl: string | null },
+  ai?: AiRenderOptions,
 ): void {
   const wasScrolledToBottom =
     container.scrollHeight - container.scrollTop - container.clientHeight <
     SCROLL_BOTTOM_THRESHOLD_PX;
 
+  const messages = ai?.hiddenMessageId
+    ? allMessages.filter((message) => message.id !== ai.hiddenMessageId)
+    : allMessages;
   container.removeAttribute('aria-busy');
   container.textContent = '';
   let previous: LocalMessage | null = null;
-  for (const message of messages) {
+  messages.forEach((message, index) => {
     if (!previous || dayKey(previous.createdAt) !== dayKey(message.createdAt)) {
       container.appendChild(renderDate(message.createdAt));
     }
+    if (previous?.senderType === 'ai' && message.senderType === 'human') {
+      container.appendChild(
+        renderNotice(
+          `${message.senderName || support?.name || 'A team member'} joined the chat`,
+        ),
+      );
+    }
     const grouped =
       previous?.direction === message.direction &&
+      previous?.senderType === message.senderType &&
       minuteKey(previous.createdAt) === minuteKey(message.createdAt);
+    const next = messages[index + 1];
+    const closesGroup =
+      !next ||
+      next.senderType !== message.senderType ||
+      minuteKey(next.createdAt) !== minuteKey(message.createdAt);
     container.appendChild(
-      renderBubble(message, onRetry, onReact, onReply, grouped, support),
+      renderBubble(message, onRetry, onReact, onReply, grouped, support, {
+        ai,
+        closesGroup,
+        isLast: index === messages.length - 1,
+      }),
     );
     previous = message;
+  });
+
+  const last = messages[messages.length - 1];
+  if (last?.senderType === 'ai' && last.ai?.kind === 'handoff' && !ai?.footer) {
+    container.appendChild(renderNotice('Waiting for a team member'));
   }
+  if (ai?.streamText) container.appendChild(renderStreaming(ai));
+  if (ai?.footer) container.appendChild(ai.footer);
 
   if (wasScrolledToBottom) {
     container.scrollTop = container.scrollHeight;
@@ -122,10 +180,14 @@ function renderBubble(
   onReply: (message: LocalMessage) => void,
   grouped: boolean,
   support?: { name: string; avatarUrl: string | null },
+  extras?: { ai?: AiRenderOptions; closesGroup: boolean; isLast: boolean },
 ): HTMLElement {
+  const isAi = message.senderType === 'ai';
+  const ai = extras?.ai;
   const row = document.createElement('div');
   row.className = `kw-bubble-row kw-bubble-row--${message.direction}`;
   row.classList.toggle('kw-bubble-row--grouped', grouped);
+  row.classList.toggle('kw-bubble-row--ai', isAi);
 
   const meta = document.createElement('div');
   meta.className = 'kw-bubble-meta';
@@ -134,7 +196,7 @@ function renderBubble(
   sender.textContent =
     message.direction === 'inbound'
       ? 'You'
-      : message.senderName || support?.name || 'Support';
+      : message.senderName || (isAi ? ai?.name : support?.name) || 'Support';
   const time = document.createElement('time');
   time.className = 'kw-bubble-time';
   time.dateTime = message.createdAt;
@@ -195,25 +257,64 @@ function renderBubble(
     }
   }
   if (message.content) {
-    const content = document.createElement('span');
-    content.textContent = message.content;
-    bubble.appendChild(content);
+    // A team reply that carries links or bold (for example a Copilot suggestion) is shown formatted too.
+    const formatted =
+      message.senderType === 'human' && FORMATTED_TEXT.test(message.content);
+    if (isAi || formatted) {
+      const content = document.createElement('div');
+      content.className = 'kw-rich';
+      content.appendChild(renderRichText(message.content, ai?.onLinkClick));
+      bubble.appendChild(content);
+    } else {
+      const content = document.createElement('span');
+      content.textContent = message.content;
+      bubble.appendChild(content);
+    }
+  }
+  const readMore = isAi ? (message.ai?.links ?? []) : [];
+  if (readMore.length > 0) {
+    const links = document.createElement('div');
+    links.className = 'kw-ai-links';
+    const label = document.createElement('span');
+    label.textContent = 'Read more:';
+    links.appendChild(label);
+    for (const item of readMore) {
+      links.appendChild(createLink(item.title, item.url, ai?.onLinkClick));
+    }
+    bubble.appendChild(links);
   }
   const line = document.createElement('div');
   line.className = 'kw-bubble-line';
   if (message.direction === 'outbound' && !grouped) {
-    const avatar = support?.avatarUrl
-      ? document.createElement('span')
-      : createBrandMark('kw-message-avatar');
-    if (support?.avatarUrl) avatar.className = 'kw-message-avatar';
-    if (support?.avatarUrl) {
-      avatar.style.backgroundImage = `url("${support.avatarUrl.replaceAll('"', '%22')}")`;
-      avatar.classList.add('kw-message-avatar--image');
-    }
-    line.appendChild(avatar);
+    line.appendChild(
+      isAi
+        ? createAiAvatar(ai?.avatarUrl ?? null)
+        : createSupportAvatar(support?.avatarUrl ?? null),
+    );
   }
   line.appendChild(bubble);
   row.append(line, meta);
+  if (isAi && extras?.closesGroup) {
+    const caption = document.createElement('div');
+    caption.className = 'kw-ai-caption';
+    caption.textContent = `${message.senderName || ai?.name || 'Assistant'} · AI assistant`;
+    row.appendChild(caption);
+  }
+  const quickReplies =
+    isAi && extras?.isLast ? (message.ai?.quickReplies ?? []) : [];
+  if (quickReplies.length > 0 && ai) {
+    const chips = document.createElement('div');
+    chips.className = 'kw-quick-replies';
+    for (const text of quickReplies) {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'kw-quick-reply';
+      chip.textContent = text;
+      chip.addEventListener('click', () => ai.onQuickReply(text));
+      chips.appendChild(chip);
+    }
+    row.appendChild(chips);
+  }
 
   const toggleDetails = () => {
     meta.hidden = !meta.hidden;
@@ -326,6 +427,53 @@ function renderBubble(
     meta.appendChild(status);
   }
 
+  return row;
+}
+
+function createSupportAvatar(avatarUrl: string | null): HTMLElement {
+  if (!avatarUrl) return createBrandMark('kw-message-avatar');
+  const avatar = document.createElement('span');
+  avatar.className = 'kw-message-avatar kw-message-avatar--image';
+  avatar.style.backgroundImage = `url("${avatarUrl.replaceAll('"', '%22')}")`;
+  return avatar;
+}
+
+function createAiAvatar(avatarUrl: string | null): HTMLElement {
+  const avatar = document.createElement('span');
+  avatar.className = 'kw-message-avatar kw-message-avatar--ai';
+  if (avatarUrl) {
+    avatar.classList.add('kw-message-avatar--image');
+    avatar.style.backgroundImage = `url("${avatarUrl.replaceAll('"', '%22')}")`;
+  } else {
+    avatar.classList.add('kw-message-avatar--kiro');
+    avatar.style.backgroundImage = `url("${kiroFaceUrl}")`;
+  }
+  return avatar;
+}
+
+function renderNotice(text: string): HTMLElement {
+  const el = document.createElement('div');
+  el.className = 'kw-system-note';
+  el.setAttribute('role', 'status');
+  el.textContent = text;
+  return el;
+}
+
+function renderStreaming(ai: AiRenderOptions): HTMLElement {
+  const row = document.createElement('div');
+  row.className =
+    'kw-bubble-row kw-bubble-row--outbound kw-bubble-row--ai kw-bubble-row--streaming';
+  row.setAttribute('aria-live', 'polite');
+  const line = document.createElement('div');
+  line.className = 'kw-bubble-line';
+  const bubble = document.createElement('div');
+  bubble.className = 'kw-bubble';
+  const content = document.createElement('div');
+  content.className = 'kw-rich';
+  content.appendChild(renderRichText(ai.streamText));
+  bubble.appendChild(content);
+  line.append(createAiAvatar(ai.avatarUrl), bubble);
+  row.appendChild(line);
   return row;
 }
 

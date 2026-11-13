@@ -1,7 +1,9 @@
 import type {
+  MessageAi,
   MessageAttachment,
   MessageReaction,
   MessageReply,
+  MessageSenderType,
   ServerMessage,
 } from './types';
 
@@ -13,6 +15,8 @@ export interface LocalMessage {
   clientMessageId: string;
   direction: 'inbound' | 'outbound';
   senderName: string | null;
+  senderType?: MessageSenderType;
+  ai?: MessageAi | null;
   content: string;
   attachments?: MessageAttachment[];
   replyTo?: MessageReply | null;
@@ -70,6 +74,33 @@ export class ChatStore {
     this.emit();
   }
 
+  // A message shown before the server has it; the real one replaces it by the same client id.
+  addLocalAi(
+    clientMessageId: string,
+    senderName: string | null,
+    content: string,
+    ai: MessageAi,
+  ): void {
+    if (this.messages.some((m) => m.clientMessageId === clientMessageId)) {
+      return;
+    }
+    this.messages.push({
+      id: null,
+      clientMessageId,
+      direction: 'outbound',
+      senderName,
+      senderType: 'ai',
+      ai,
+      content,
+      attachments: [],
+      replyTo: null,
+      reactions: [],
+      createdAt: new Date().toISOString(),
+      status: 'sent',
+    });
+    this.emit();
+  }
+
   confirmSent(clientMessageId: string, server: ServerMessage): void {
     if (this.messages.some((m) => m.id === server.id)) {
       this.messages = this.messages.filter(
@@ -86,6 +117,8 @@ export class ChatStore {
       pending.createdAt = server.createdAt;
       pending.status = server.status;
       pending.senderName = server.senderName;
+      pending.senderType = server.senderType;
+      pending.ai = server.ai ?? null;
       pending.attachments = server.attachments ?? [];
       pending.replyTo = server.replyTo ?? null;
       pending.reactions = server.reactions ?? [];
@@ -95,6 +128,8 @@ export class ChatStore {
         clientMessageId,
         direction: server.direction,
         senderName: server.senderName,
+        senderType: server.senderType,
+        ai: server.ai ?? null,
         content: server.content,
         attachments: server.attachments ?? [],
         replyTo: server.replyTo ?? null,
@@ -137,6 +172,8 @@ export class ChatStore {
         existingByClientId.createdAt = item.createdAt;
         existingByClientId.status = item.status;
         existingByClientId.senderName = item.senderName;
+        existingByClientId.senderType = item.senderType;
+        existingByClientId.ai = item.ai ?? null;
         existingByClientId.replyTo = item.replyTo ?? null;
         existingByClientId.reactions = item.reactions ?? [];
         changed = true;
@@ -147,6 +184,8 @@ export class ChatStore {
         clientMessageId: item.clientMessageId,
         direction: item.direction,
         senderName: item.senderName,
+        senderType: item.senderType,
+        ai: item.ai ?? null,
         content: item.content,
         attachments: item.attachments ?? [],
         replyTo: item.replyTo ?? null,

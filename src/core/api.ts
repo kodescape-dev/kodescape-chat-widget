@@ -1,4 +1,5 @@
 import type {
+  AiInfo,
   ApiEnvelope,
   AppointmentRequest,
   AppointmentResult,
@@ -212,6 +213,65 @@ export class ChatApi {
         body: JSON.stringify(payload),
       },
     );
+  }
+
+  getAiInfo(siteId: string, accessToken?: string): Promise<AiInfo> {
+    return request<AiInfo>(
+      `${this.apiBaseUrl}/api/v1/public/chat/ai?siteId=${encodeURIComponent(siteId)}`,
+      {
+        method: 'GET',
+        cache: 'no-store',
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {},
+      },
+    );
+  }
+
+  private postAi(
+    path: string,
+    accessToken: string,
+    body?: unknown,
+  ): Promise<Response> {
+    return fetch(`${this.apiBaseUrl}/api/v1/public/chat/ai/${path}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+    });
+  }
+
+  async rateConversation(
+    accessToken: string,
+    rating: number,
+    comment: string,
+  ): Promise<void> {
+    const response = await this.postAi('rating', accessToken, {
+      rating,
+      ...(comment ? { comment } : {}),
+    });
+    if (!response.ok) throw new ApiError('Rating failed', response.status);
+  }
+
+  async startFromGreeting(
+    accessToken: string,
+    greetingId: string,
+  ): Promise<void> {
+    await this.postAi(
+      `greetings/${encodeURIComponent(greetingId)}/start`,
+      accessToken,
+    );
+  }
+
+  greetingShown(accessToken: string, greetingId: string): void {
+    void this.postAi(
+      `greetings/${encodeURIComponent(greetingId)}/shown`,
+      accessToken,
+    ).catch(() => undefined);
+  }
+
+  trackLinkClick(accessToken: string, url: string): void {
+    void this.postAi('link-click', accessToken, { url }).catch(() => undefined);
   }
 
   markMessagesRead(accessToken: string): Promise<{ updated: boolean }> {
