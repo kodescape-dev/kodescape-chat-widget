@@ -79,6 +79,10 @@ const HOME_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M15 6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const MORE_ICON =
   '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="12" cy="5" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="12" cy="19" r="1.8"/></svg>';
+const EXPAND_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 9V3m0 0L9 6m3-3 3 3M12 15v6m0 0-3-3m3 3 3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+const COLLAPSE_ICON =
+  '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M12 3v6m0 0L9 6m3 3 3-3M12 21v-6m0 0-3 3m3-3 3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const NOTIFICATIONS_OFF_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M13.73 21a2 2 0 0 1-3.46 0M18 8a6 6 0 0 0-9.33-5M6.26 6.26A6 6 0 0 0 6 8c0 7-3 7-3 9h14M3 3l18 18" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const TEAM_MEMBER_ICON =
@@ -134,6 +138,14 @@ export function createChatWindow(handlers: {
 
   const headerBrand = createBrandMark('kw-header-brand');
 
+  const brandDot = document.createElement('span');
+  brandDot.className = 'kw-status-dot kw-brand-dot kw-status-dot--offline';
+  brandDot.setAttribute('aria-hidden', 'true');
+
+  const headerIdentity = document.createElement('div');
+  headerIdentity.className = 'kw-header-identity';
+  headerIdentity.append(headerBrand, brandDot);
+
   const headerText = document.createElement('div');
   headerText.className = 'kw-header-text';
 
@@ -159,7 +171,9 @@ export function createChatWindow(handlers: {
   let onlineStatus = '';
   let offlineStatus = '';
   function renderAvailability(): void {
-    statusDot.classList.toggle('kw-status-dot--offline', !connected || !isOpen);
+    const offline = !connected || !isOpen;
+    statusDot.classList.toggle('kw-status-dot--offline', offline);
+    brandDot.classList.toggle('kw-status-dot--offline', offline);
     statusText.textContent = isOpen ? supportSubtitle : 'Offline';
     statusRow.title = !isOpen
       ? 'Outside operating hours'
@@ -174,6 +188,25 @@ export function createChatWindow(handlers: {
 
   const headerActions = document.createElement('div');
   headerActions.className = 'kw-header-actions';
+
+  const expandButton = document.createElement('button');
+  expandButton.type = 'button';
+  expandButton.className = 'kw-header-action kw-expand-trigger';
+  expandButton.hidden = true;
+
+  let expanded = false;
+  function renderExpanded(): void {
+    panel.classList.toggle('kw-panel--expanded', expanded);
+    expandButton.innerHTML = expanded ? COLLAPSE_ICON : EXPAND_ICON;
+    const label = expanded ? 'Collapse chat' : 'Expand chat';
+    expandButton.setAttribute('aria-label', label);
+    expandButton.title = label;
+  }
+  expandButton.addEventListener('click', () => {
+    expanded = !expanded;
+    renderExpanded();
+  });
+  renderExpanded();
 
   const menuButton = document.createElement('button');
   menuButton.type = 'button';
@@ -252,8 +285,8 @@ export function createChatWindow(handlers: {
   presenceCount.setAttribute('aria-hidden', 'true');
   supportPresence.append(presenceAvatar, ...companionAvatars, presenceCount);
 
-  headerActions.append(menuButton);
-  headerMain.append(homeButton, headerBrand, headerText, headerActions);
+  headerActions.append(expandButton, menuButton);
+  headerMain.append(homeButton, headerIdentity, headerText, headerActions);
   header.append(headerMain, supportPresence);
 
   const home = createHomeView({
@@ -356,6 +389,7 @@ export function createChatWindow(handlers: {
     booking.el.hidden = view !== 'booking';
     contactForm.el.hidden = view !== 'contact';
     homeButton.hidden = view !== 'chat' || !hasChannels;
+    expandButton.hidden = view !== 'chat';
     panel.classList.toggle('kw-panel--home', view === 'home');
     panel.classList.toggle('kw-panel--lead-capture', view === 'lead-capture');
     panel.classList.toggle('kw-panel--chat', view === 'chat');
