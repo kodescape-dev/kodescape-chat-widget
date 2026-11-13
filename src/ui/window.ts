@@ -352,13 +352,13 @@ export function createChatWindow(handlers: {
     onDismiss: handlers.onContactPromptDismiss,
   });
 
-  chatView.append(list, contactPrompt.el, typingIndicator.el, composer.el);
+  chatView.append(list, typingIndicator.el, composer.el);
 
   const body = document.createElement('div');
   body.className = 'kw-body';
   body.append(home.el, leadCapture.el, chatView, booking.el, contactForm.el);
 
-  panel.append(header, headerMenu, body);
+  panel.append(header, headerMenu, body, contactPrompt.el);
 
   panel.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {

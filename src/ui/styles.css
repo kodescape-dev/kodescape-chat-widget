@@ -1500,8 +1500,8 @@ button {
 
 /* ---------- contact prompt ---------- */
 
-.kw-chat-view {
-  position: relative;
+.kw-panel:not(.kw-panel--chat) > .kw-contact-prompt {
+  display: none;
 }
 
 .kw-contact-prompt {
