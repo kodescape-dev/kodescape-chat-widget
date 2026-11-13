@@ -1500,38 +1500,116 @@ button {
 
 /* ---------- contact prompt ---------- */
 
+.kw-chat-view {
+  position: relative;
+}
+
 .kw-contact-prompt {
-  margin: 10px 12px 12px;
-  padding: 16px;
-  border: 1px solid var(--kw-border);
-  border-radius: 16px;
-  background: var(--kw-surface);
-  box-shadow: 0 8px 24px -18px rgba(16, 24, 40, 0.45);
+  position: absolute;
+  z-index: 6;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  padding: 8px;
+  background: color-mix(
+    in srgb,
+    var(--kw-text-color, #0b1437) 52%,
+    transparent
+  );
+  animation: kw-contact-prompt-fade 200ms ease-out;
 }
 
 .kw-contact-prompt[hidden] {
   display: none;
 }
 
-.kw-contact-prompt-heading {
-  margin: 0;
-  font-size: 14.5px;
-  font-weight: 700;
-  letter-spacing: -0.01em;
+.kw-contact-prompt-sheet {
+  width: 100%;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--kw-surface);
+  box-shadow: 0 12px 32px -8px
+    color-mix(in srgb, var(--kw-text-color, #0b1437) 40%, transparent);
+  animation: kw-contact-prompt-rise 260ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.kw-contact-prompt-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.kw-contact-prompt-avatar,
+.kw-contact-prompt-avatar img {
+  display: block;
+  width: 46px;
+  height: 46px;
+}
+
+.kw-contact-prompt-avatar {
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--kw-surface-sunk);
+}
+
+.kw-contact-prompt-avatar img {
+  box-sizing: border-box;
+  object-fit: contain;
+  padding: 9px;
+}
+
+.kw-contact-prompt-avatar.kw-brand-mark--custom img {
+  padding: 0;
+  object-fit: cover;
+}
+
+.kw-contact-prompt-dismiss {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--kw-ink-500);
+  cursor: pointer;
+}
+
+.kw-contact-prompt-dismiss svg {
+  width: 20px;
+  height: 20px;
+}
+
+.kw-contact-prompt-dismiss:hover {
+  background: var(--kw-surface-sunk);
   color: var(--kw-ink-900);
 }
 
+.kw-contact-prompt-heading {
+  margin: 14px 0 0;
+  color: var(--kw-ink-900);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+}
+
 .kw-contact-prompt-description {
-  margin: 4px 0 14px;
+  margin: 4px 0 0;
   color: var(--kw-ink-500);
-  font-size: 12px;
+  font-size: 13px;
   line-height: 1.5;
+}
+
+.kw-contact-prompt-description[hidden] {
+  display: none;
 }
 
 .kw-contact-prompt-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 10px;
+  margin-top: 14px;
 }
 
 .kw-contact-prompt-form .kw-field {
@@ -1540,61 +1618,58 @@ button {
 }
 
 .kw-contact-prompt-form .kw-field label {
-  margin-bottom: 6px;
-  font-size: 12px;
-}
-
-.kw-contact-prompt-form .kw-field-input {
-  min-height: 42px;
-  padding: 9px 11px;
-  border-color: var(--kw-border);
-  border-radius: 9px;
-  background: var(--kw-surface-sunk);
-}
-
-.kw-contact-prompt-actions {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  grid-column: 1 / -1;
-  gap: 8px;
-  margin-top: 4px;
-  padding-top: 10px;
-}
-
-.kw-contact-prompt-dismiss {
-  background: none;
-  border: none;
-  font: inherit;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--kw-ink-500);
-  cursor: pointer;
-  min-height: 40px;
-  padding: 9px 11px;
-  border-radius: 9px;
-}
-
-.kw-contact-prompt-dismiss:hover {
-  background: var(--kw-surface-sunk);
-  color: var(--kw-ink-700);
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .kw-contact-prompt-submit {
+  min-height: 46px;
+  margin-top: 4px;
+  border: 0;
+  border-radius: 999px;
   background: var(--kw-primary-color, #2563eb);
+  box-shadow:
+    0 1px 2px rgba(16, 24, 40, 0.06),
+    0 4px 12px -2px
+      color-mix(in srgb, var(--kw-primary-color, #2563eb) 40%, transparent);
   color: var(--kw-primary-foreground, #fff);
-  border: none;
-  min-height: 36px;
-  border-radius: 8px;
   font: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  padding: 7px 12px;
+  font-size: 14px;
+  font-weight: 650;
   cursor: pointer;
 }
 
 .kw-contact-prompt-submit:hover {
   filter: brightness(0.94);
+}
+
+.kw-contact-prompt-submit:focus-visible,
+.kw-contact-prompt-dismiss:focus-visible {
+  outline: 2px solid var(--kw-primary-color, #2563eb);
+  outline-offset: 2px;
+}
+
+@keyframes kw-contact-prompt-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes kw-contact-prompt-rise {
+  from {
+    transform: translateY(24px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kw-contact-prompt,
+  .kw-contact-prompt-sheet {
+    animation: none;
+  }
 }
 
 /* ---------- composer ---------- */
@@ -2673,8 +2748,12 @@ button {
 
 .kw-field label {
   margin-bottom: 6px;
-  font-size: 12px;
-  font-weight: 650;
+  font-size: 12.5px;
+  font-weight: 500;
+}
+
+.kw-field-opt {
+  font-weight: 400;
 }
 
 .kw-field-input {
@@ -2685,9 +2764,24 @@ button {
     var(--kw-text-color, #0b1437) 16%,
     transparent
   );
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--kw-surface);
-  font-size: 13px;
+  font-size: 14px;
+}
+
+.kw-field-input:focus {
+  box-shadow: 0 0 0 3px
+    color-mix(in srgb, var(--kw-primary-color, #2563eb) 14%, transparent);
+}
+
+.kw-field-input:user-invalid {
+  border-color: #ef4444;
+}
+
+@media (max-width: 480px) {
+  .kw-field-input {
+    font-size: 16px;
+  }
 }
 
 textarea.kw-field-input {
@@ -4078,7 +4172,8 @@ textarea.kw-field-input {
 
 .kw-panel--chat.kw-panel--expanded {
   height: calc(
-    100dvh - var(--kw-bottom-offset, 20px) - var(--kw-launcher-size, 54px) - 32px
+    100dvh - var(--kw-bottom-offset, 20px) - var(--kw-launcher-size, 54px) -
+      32px
   );
 }
 

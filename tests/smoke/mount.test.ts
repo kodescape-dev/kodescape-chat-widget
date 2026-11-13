@@ -1000,6 +1000,51 @@ describe('mount()', () => {
     widget.destroy();
   });
 
+  it('previews the introduce-yourself sheet over the chat when contact details are asked after the first message', async () => {
+    const { mount } = await import('../../src/mount');
+    const widget = mount({
+      siteId: 'preview',
+      apiBaseUrl: 'http://should-not-be-called.test',
+      target: container,
+      preview: true,
+    });
+    const shadow = (container.firstElementChild as HTMLElement).shadowRoot!;
+    const editorInput = document.createElement('input');
+    document.body.appendChild(editorInput);
+    editorInput.focus();
+
+    const preview = (state: string, contactCollectionMode: string) =>
+      window.dispatchEvent(
+        new MessageEvent('message', {
+          source: window.parent,
+          data: {
+            type: 'kodescape-widget-preview:configure',
+            settings: widgetSettings({ contactCollectionMode }),
+            state,
+            device: 'desktop',
+          },
+        }),
+      );
+    const sheet = () =>
+      shadow.querySelector<HTMLElement>('.kw-contact-prompt')!;
+    const chatView = () => shadow.querySelector<HTMLElement>('.kw-chat-view')!;
+
+    preview('pre-chat', 'after_first_message');
+    expect(chatView().hidden).toBe(false);
+    expect(sheet().hidden).toBe(false);
+    expect(document.activeElement).toBe(editorInput);
+
+    preview('chat', 'after_first_message');
+    expect(sheet().hidden).toBe(true);
+
+    preview('pre-chat', 'before_chat');
+    expect(chatView().hidden).toBe(true);
+    expect(shadow.querySelector('.kw-lead-heading')).not.toBeNull();
+
+    editorInput.remove();
+    widget.destroy();
+  });
+
   it('opens the panel on launcher click and closes it again on a second click', async () => {
     const { mount } = await import('../../src/mount');
     const widget = mount({

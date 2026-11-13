@@ -26,6 +26,7 @@ import { AI_TYPER_ID } from './ui/typing-indicator';
 import { createRatingCard, type RatingCardHandle } from './ui/rating';
 import type { AiGreeting, AiInfo } from './core/types';
 import type { LeadCaptureConfig, LeadCaptureData } from './ui/lead-capture';
+import { DEFAULT_CONTACT_HEADING } from './ui/contact-prompt';
 import type {
   ContactPromptConfig,
   ContactPromptData,
@@ -132,8 +133,8 @@ const DEFAULT_WIDGET_SETTINGS: WidgetSettings = {
   requireName: true,
   askEmail: true,
   requireEmail: true,
-  formHeading: "Let's get you connected",
-  formDescription: 'Please share a few details so we can help you.',
+  formHeading: DEFAULT_CONTACT_HEADING,
+  formDescription: '',
   contactCollectionMode: 'before_chat',
   showOnDesktop: true,
   showOnMobile: true,
@@ -626,18 +627,29 @@ export function mount(options: MountOptions): MountedWidget {
       requireName: settings.requireName,
       askEmail: settings.askEmail,
       requireEmail: settings.requireEmail,
-      heading: settings.formHeading,
+      heading: settings.formHeading.trim() || DEFAULT_CONTACT_HEADING,
       description: settings.formDescription,
     };
   }
 
-  function contactPromptConfig(): ContactPromptConfig {
-    const settings = currentSettings ?? DEFAULT_LEAD_SETTINGS;
+  function contactPromptConfig(
+    settings: Pick<
+      WidgetSettings,
+      | 'askName'
+      | 'requireName'
+      | 'askEmail'
+      | 'requireEmail'
+      | 'formHeading'
+      | 'formDescription'
+    > = currentSettings ?? DEFAULT_LEAD_SETTINGS,
+  ): ContactPromptConfig {
     return {
       askName: settings.askName,
       requireName: settings.requireName,
       askEmail: settings.askEmail,
       requireEmail: settings.requireEmail,
+      heading: settings.formHeading,
+      description: settings.formDescription,
     };
   }
 
@@ -1366,7 +1378,10 @@ export function mount(options: MountOptions): MountedWidget {
       else chatWindow.showHome();
     } else if (message.state === 'home') {
       chatWindow.showHome();
-    } else if (message.state === 'pre-chat') {
+    } else if (
+      message.state === 'pre-chat' &&
+      message.settings.contactCollectionMode !== 'after_first_message'
+    ) {
       chatWindow.configureLeadCapture(leadCaptureConfig());
       chatWindow.showLeadCapture({ focus: false });
     } else {
@@ -1379,6 +1394,14 @@ export function mount(options: MountOptions): MountedWidget {
         message.settings.supportAvatarUrl,
       );
       chatWindow.setConnectionStatus(true);
+      if (message.state === 'pre-chat') {
+        chatWindow.configureContactPrompt(
+          contactPromptConfig(message.settings),
+        );
+        chatWindow.showContactPrompt({ focus: false });
+      } else {
+        chatWindow.hideContactPrompt();
+      }
     }
   }
 

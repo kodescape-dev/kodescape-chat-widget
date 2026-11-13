@@ -65,7 +65,7 @@ export interface ChatWindowHandle {
     }>,
   ): void;
   configureContactPrompt(config: ContactPromptConfig): void;
-  showContactPrompt(): void;
+  showContactPrompt(options?: { focus?: boolean }): void;
   hideContactPrompt(): void;
   destroy(): void;
 }
@@ -477,6 +477,7 @@ export function createChatWindow(handlers: {
       supportSubtitle = subtitle || 'Connecting…';
       renderAvailability();
       setBrandMarkImage(headerBrand, avatarUrl);
+      contactPrompt.setAvatar(avatarUrl);
       typingIndicator.setSupportAvatar(avatarUrl);
       presenceAvatar.childNodes[0]?.remove();
       presenceAvatar.prepend(
@@ -558,8 +559,8 @@ export function createChatWindow(handlers: {
     configureContactPrompt(config) {
       contactPrompt.configure(config);
     },
-    showContactPrompt() {
-      contactPrompt.show();
+    showContactPrompt(options) {
+      contactPrompt.show(options);
     },
     hideContactPrompt() {
       contactPrompt.hide();
