@@ -1550,8 +1550,10 @@ function applyWebsiteFont(host: HTMLElement): void {
   const website = getComputedStyle(document.body).fontFamily.trim();
   if (website && website !== browserDefault) {
     host.style.setProperty('--kw-font-family', website);
+    host.style.fontFamily = website;
   } else {
     host.style.removeProperty('--kw-font-family');
+    host.style.removeProperty('font-family');
   }
 }
 
