@@ -28,6 +28,8 @@ export const DEFAULT_CONTACT_HEADING = 'Please introduce yourself:';
 const CHEVRON_DOWN_ICON =
   '<svg viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 
+const CLOSE_DURATION_MS = 280;
+
 export function createContactPrompt(handlers: {
   onSubmit: (data: ContactPromptData) => void;
   onDismiss: () => void;
@@ -52,7 +54,7 @@ export function createContactPrompt(handlers: {
   dismissButton.setAttribute('aria-label', 'Hide');
   dismissButton.innerHTML = CHEVRON_DOWN_ICON;
   dismissButton.addEventListener('click', () => {
-    hide();
+    close();
     handlers.onDismiss();
   });
 
@@ -96,16 +98,47 @@ export function createContactPrompt(handlers: {
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     if (!form.reportValidity()) return;
-    hide();
+    close();
     handlers.onSubmit({
       name: nameField.input.value.trim(),
       email: emailField.input.value.trim(),
     });
   });
 
+  let closeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function finishClose(): void {
+    if (closeTimer) clearTimeout(closeTimer);
+    closeTimer = null;
+    el.classList.remove('kw-contact-prompt--closing');
+  }
+
   function hide(): void {
+    finishClose();
     el.hidden = true;
   }
+
+  function close(): void {
+    const reducedMotion = window.matchMedia?.(
+      '(prefers-reduced-motion: reduce)',
+    ).matches;
+    if (el.hidden || reducedMotion) {
+      hide();
+      return;
+    }
+    el.classList.add('kw-contact-prompt--closing');
+    // Falls back to a timer because animationend never fires if the panel is hidden mid-slide.
+    closeTimer = setTimeout(hide, CLOSE_DURATION_MS + 60);
+  }
+
+  sheet.addEventListener('animationend', (event) => {
+    if (
+      event.target === sheet &&
+      el.classList.contains('kw-contact-prompt--closing')
+    ) {
+      hide();
+    }
+  });
 
   return {
     el,
@@ -126,6 +159,7 @@ export function createContactPrompt(handlers: {
       setBrandMarkImage(avatar, avatarUrl);
     },
     show(options) {
+      finishClose();
       el.hidden = false;
       if (options?.focus === false) return;
       const first = [nameField, emailField].find((field) => !field.wrap.hidden);

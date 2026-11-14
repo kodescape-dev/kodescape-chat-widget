@@ -2085,6 +2085,9 @@ describe('mount()', () => {
         '.kw-contact-prompt-dismiss',
       ) as HTMLButtonElement
     ).click();
+    contactPrompt
+      .querySelector('.kw-contact-prompt-sheet')!
+      .dispatchEvent(new Event('animationend'));
     expect(contactPrompt.hidden).toBe(true);
 
     textarea.value = 'a second message';

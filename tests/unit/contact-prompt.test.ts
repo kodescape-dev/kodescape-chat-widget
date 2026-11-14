@@ -20,6 +20,8 @@ function setup() {
 
 describe('createContactPrompt()', () => {
   afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
     document.body.replaceChildren();
   });
 
@@ -61,6 +63,7 @@ describe('createContactPrompt()', () => {
   });
 
   it('sends the trimmed details and hides itself', () => {
+    vi.useFakeTimers();
     const { prompt, onSubmit } = setup();
     prompt.el.querySelector<HTMLInputElement>(
       '#kw-contact-prompt-name',
@@ -75,10 +78,12 @@ describe('createContactPrompt()', () => {
       name: 'Alex Visitor',
       email: 'alex@example.com',
     });
+    vi.runAllTimers();
     expect(prompt.el.hidden).toBe(true);
   });
 
-  it('hides and reports when the visitor says not now', () => {
+  it('slides down, then hides and reports when the visitor says not now', () => {
+    vi.useFakeTimers();
     const { prompt, onDismiss } = setup();
 
     prompt.el
@@ -86,6 +91,38 @@ describe('createContactPrompt()', () => {
       .click();
 
     expect(onDismiss).toHaveBeenCalledOnce();
+    expect(prompt.el.classList).toContain('kw-contact-prompt--closing');
+    expect(prompt.el.hidden).toBe(false);
+
+    prompt.el
+      .querySelector('.kw-contact-prompt-sheet')!
+      .dispatchEvent(new Event('animationend', { bubbles: true }));
     expect(prompt.el.hidden).toBe(true);
+    expect(prompt.el.classList).not.toContain('kw-contact-prompt--closing');
+  });
+
+  it('closes at once when the visitor prefers reduced motion', () => {
+    vi.stubGlobal('matchMedia', vi.fn().mockReturnValue({ matches: true }));
+    const { prompt } = setup();
+
+    prompt.el
+      .querySelector<HTMLButtonElement>('.kw-contact-prompt-dismiss')!
+      .click();
+
+    expect(prompt.el.hidden).toBe(true);
+  });
+
+  it('stops closing when it is shown again mid-slide', () => {
+    vi.useFakeTimers();
+    const { prompt } = setup();
+
+    prompt.el
+      .querySelector<HTMLButtonElement>('.kw-contact-prompt-dismiss')!
+      .click();
+    prompt.show();
+    vi.runAllTimers();
+
+    expect(prompt.el.hidden).toBe(false);
+    expect(prompt.el.classList).not.toContain('kw-contact-prompt--closing');
   });
 });

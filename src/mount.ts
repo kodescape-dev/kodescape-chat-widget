@@ -757,12 +757,10 @@ export function mount(options: MountOptions): MountedWidget {
     chatWindow.showContactPrompt();
   }
 
-  function handleContactPromptDismiss(): void {
-    chatWindow.hideContactPrompt();
-  }
+  // The prompt slides itself away on dismiss and submit, so nothing here hides it.
+  function handleContactPromptDismiss(): void {}
 
   function handleContactPromptSubmit(data: ContactPromptData): void {
-    chatWindow.hideContactPrompt();
     if (!data.name && !data.email) return;
     void (async () => {
       try {
